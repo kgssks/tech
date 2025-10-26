@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이벤트 참여 - AI 기술테크포럼 2024</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 네비게이션 -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #545045 0%, #60584C 100%);">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-robot me-2"></i>AI Tech Forum 2024
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/app/intro/">
+                    <i class="fas fa-info-circle me-1"></i>소개
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- 인증 확인 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-0 shadow">
+                    <div class="card-body text-center">
+                        <h2 class="mb-3">
+                            <i class="fas fa-lock text-warning me-2"></i>
+                            인증이 필요합니다
+                        </h2>
+                        <p class="text-muted mb-4">이벤트 참여를 위해 로그인이 필요합니다.</p>
+                        <a href="/app/event/auth" class="btn btn-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>로그인하기
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 이벤트 안내 -->
+        <div class="row">
+            <div class="col-lg-8 mx-auto">
+                <div class="card border-0 shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-gift me-2"></i>경품 이벤트 안내
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">1</div>
+                                    <span>체험 부스 3개 이상 방문</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">2</div>
+                                    <span>세션별 설문 3개 이상 참여</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">3</div>
+                                    <span>부스/설문 합계 4개 이상 참여</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">4</div>
+                                    <span>경품 수령</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>참여 조건:</strong> 다음 중 하나를 만족하면 경품 수령 자격이 부여됩니다.<br>
+                            • 체험 부스 3개 이상 방문<br>
+                            • 세션별 설문 3개 이상 참여<br>
+                            • 부스와 설문 합계 4개 이상 참여
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        // 이벤트 페이지 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthenticationStatus();
+        });
+
+        async function checkAuthenticationStatus() {
+            const token = AIForum.StorageManager.getToken();
+            
+            if (!token || !AIForum.StorageManager.isTokenValid()) {
+                // 토큰이 없거나 유효하지 않은 경우
+                showLoginRequired();
+                return;
+            }
+
+            // 로딩 상태 표시
+            showLoadingState();
+
+            try {
+                // 토큰 유효성 검증
+                const response = await AIForum.ApiClient.get('/api/auth/verify');
+                
+                if (response.ok) {
+                    // 인증 성공 - 이벤트 데이터 페이지로 리다이렉트
+                    showAuthenticatedView();
+                } else {
+                    // 토큰이 유효하지 않은 경우
+                    AIForum.StorageManager.clearToken();
+                    showLoginRequired();
+                }
+            } catch (error) {
+                console.error('Authentication verification failed:', error);
+                AIForum.StorageManager.clearToken();
+                showLoginRequired();
+            }
+        }
+
+        function showLoadingState() {
+            const authCard = document.querySelector('.card-body.text-center');
+            if (authCard) {
+                authCard.innerHTML = `
+                    <h2 class="mb-3">
+                        <i class="fas fa-spinner fa-spin text-primary me-2"></i>
+                        인증 확인 중...
+                    </h2>
+                    <p class="text-muted mb-4">잠시만 기다려주세요.</p>
+                `;
+            }
+        }
+
+        function showLoginRequired() {
+            // 로그인 필요 상태 유지 (기본 상태)
+            const authCard = document.querySelector('.card-body.text-center');
+            if (authCard) {
+                authCard.innerHTML = `
+                    <h2 class="mb-3">
+                        <i class="fas fa-lock text-warning me-2"></i>
+                        인증이 필요합니다
+                    </h2>
+                    <p class="text-muted mb-4">이벤트 참여를 위해 로그인이 필요합니다.</p>
+                    <a href="/app/event/auth" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>로그인하기
+                    </a>
+                `;
+            }
+        }
+
+        function showAuthenticatedView() {
+            // 인증된 상태로 UI 변경
+            const authCard = document.querySelector('.card-body.text-center');
+            if (authCard) {
+                authCard.innerHTML = `
+                    <h2 class="mb-3">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        인증 완료
+                    </h2>
+                    <p class="text-muted mb-4">이벤트 참여가 가능합니다.</p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="/app/event/data" class="btn btn-success btn-lg">
+                            <i class="fas fa-chart-line me-2"></i>이벤트 현황
+                        </a>
+                        <button onclick="logout()" class="btn btn-outline-secondary btn-lg">
+                            <i class="fas fa-sign-out-alt me-2"></i>로그아웃
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function logout() {
+            if (confirm('로그아웃하시겠습니까?')) {
+                AIForum.StorageManager.clearToken();
+                window.location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
+
+

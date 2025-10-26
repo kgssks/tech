@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이벤트 현황 테스트</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <h1>이벤트 현황 테스트</h1>
+        <div id="status"></div>
+        <div id="debug"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
+        // 토큰 설정 (테스트용)
+        localStorage.setItem('token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMsImVtcGxveWVlSWQiOiI3NjU0MzIxIiwiaXNBZG1pbiI6ZmFsc2UsImlhdCI6MTc2MTQ2OTk1NCwiZXhwIjoxNzY0MDYxOTU0fQ.mJbjG5PpVsECZxbwwuT9RKXPNCCX9YkAdJZewwUSPpI');
+        
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Test page loaded');
+            
+            try {
+                console.log('AIForum available:', typeof AIForum);
+                console.log('StorageManager available:', typeof AIForum.StorageManager);
+                console.log('ApiClient available:', typeof AIForum.ApiClient);
+                
+                const response = await AIForum.ApiClient.get('/api/event/status');
+                console.log('API Response:', response);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Event Status Data:', data);
+                    document.getElementById('status').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                } else {
+                    console.error('API Error:', response.status, response.statusText);
+                    document.getElementById('status').innerHTML = '<div class="alert alert-danger">API Error: ' + response.status + '</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('status').innerHTML = '<div class="alert alert-danger">Error: ' + error.message + '</div>';
+            }
+        });
+    </script>
+</body>
+</html>
