@@ -28,17 +28,30 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # 불필요한 파일 제외하고 압축
-          tar -czf deployment.tar.gz \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='*.log' \
-            --exclude='.env' \
-            --exclude='database.sqlite' \
-            --exclude='*.sqlite' \
-            --exclude='.github' \
-            --exclude='README.md' \
-            .
+          # 임시 디렉토리 생성
+          mkdir -p temp_deploy
+          
+          # 필요한 파일만 임시 디렉토리로 복사
+          rsync -av \
+          --exclude='.git/' \
+          --exclude='node_modules/' \
+          --exclude='*.log' \
+          --exclude='.env' \
+          --exclude='*.db' \
+          --exclude='database.sqlite' \
+          --exclude='*.sqlite' \
+          --exclude='.github/' \
+          --exclude='README.md' \
+          --exclude='temp_deploy/' \
+          ./ temp_deploy/
+          
+          # 임시 디렉토리에서 압축
+          cd temp_deploy
+          tar -czf ../deployment.tar.gz .
+          cd ..
+          
+          # 임시 디렉토리 정리
+          rm -rf temp_deploy
 
       - name: Upload to S3
         run: |
