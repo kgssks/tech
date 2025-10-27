@@ -1,0 +1,98 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  EC2_INSTANCE_ID: i-09447d0fcb3f955ae
+  AWS_REGION: ap-northeast-2  # 서울 리전, 필요시 변경
+  PROJECT_PATH: /home/ec2-user/tech-forum  # EC2 내 프로젝트 경로
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create deployment package
+        run: |
+          # 불필요한 파일 제외하고 압축
+          tar -czf deployment.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='*.log' \
+            --exclude='.env' \
+            --exclude='database.sqlite' \
+            --exclude='*.sqlite' \
+            --exclude='.github' \
+            --exclude='README.md' \
+            .
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp deployment.tar.gz s3://${{ secrets.S3_BUCKET_NAME }}/deployments/tech-forum-$(date +%Y%m%d-%H%M%S).tar.gz
+
+      - name: Deploy to EC2
+        run: |
+          # EC2에 배포 명령 전송
+          aws ssm send-command \
+            --instance-ids ${{ env.EC2_INSTANCE_ID }} \
+            --document-name "AWS-RunShellScript" \
+            --parameters 'commands=[
+              "#!/bin/bash",
+              "set -e",
+              "echo \"Starting deployment...\"",
+          
+              "# 프로젝트 디렉토리로 이동",
+              "cd ${{ env.PROJECT_PATH }}",
+          
+              "# 현재 서비스 중지",
+              "sudo pkill -f \"node.*app.js\" || true",
+              "pm2 stop all || true",
+          
+              "# 백업 생성 (DB 파일 포함)",
+              "sudo cp -r . ../tech-forum-backup-$(date +%Y%m%d-%H%M%S) || true",
+          
+              "# 최신 배포 파일 다운로드",
+              "LATEST_FILE=$(aws s3 ls s3://${{ secrets.S3_BUCKET_NAME }}/deployments/ --recursive | sort | tail -n 1 | awk \"{print \\$4}\")",
+              "aws s3 cp s3://${{ secrets.S3_BUCKET_NAME }}/$LATEST_FILE ./latest-deployment.tar.gz",
+          
+              "# 기존 소스 파일 백업 (DB 파일 제외)",
+              "find . -type f ! -name \"*.sqlite*\" ! -name \"*.db\" ! -name \"latest-deployment.tar.gz\" -delete",
+          
+              "# 새 소스 코드 압축 해제",
+              "tar -xzf latest-deployment.tar.gz",
+              "rm latest-deployment.tar.gz",
+          
+              "# 의존성 설치",
+              "npm install --production",
+          
+              "# 환경 변수 설정",
+              "export NODE_ENV=production",
+          
+              "# 애플리케이션 재시작",
+              "pm2 start ecosystem.config.js --env production || pm2 start app.js --name tech-forum",
+          
+              "echo \"Deployment completed successfully!\""
+            ]' \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for deployment completion
+        run: |
+          sleep 30
+          # 배포 상태 확인
+          aws ssm describe-instance-information \
+            --instance-information-filter-list key=InstanceIds,valueSet=${{ env.EC2_INSTANCE_ID }} \
+            --region ${{ env.AWS_REGION }}
