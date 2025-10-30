@@ -8,8 +8,11 @@ const TOKEN_EXPIRY_KEY = 'token_expiry_date';
 // DOM 로드 완료 시 실행
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
-    setupEventListeners();
     setupScrollAnimations();
+    setTimeout(()=>{
+        setupEventListeners();
+    }, 1000)
+
 });
 
 // 앱 초기화
@@ -75,14 +78,16 @@ function setupEventListeners() {
     const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
     navLinks.forEach(link => {
         link.addEventListener('click', handleNavClick);
+        console.log("ckick nav check", link)
     });
     
-    // 모든 앵커 링크에 스크롤 기능 추가 (중복 방지)
+    //모든 앵커 링크에 스크롤 기능 추가 (중복 방지)
     const allAnchorLinks = document.querySelectorAll('a[href^="#"]');
     allAnchorLinks.forEach(link => {
         // 이미 이벤트 리스너가 있는지 확인
         if (!link.hasAttribute('data-scroll-handler')) {
             link.setAttribute('data-scroll-handler', 'true');
+            console.log("ckick anchor check", link)
             link.addEventListener('click', handleNavClick);
         }
     });
@@ -142,6 +147,8 @@ function setupScrollAnimations() {
 
 // 네비게이션 클릭 처리
 function handleNavClick(e) {
+
+    console.log("handleNav")
     e.preventDefault();
     
     // 클릭된 요소가 링크인지 확인하고, 아니면 부모 요소에서 href 찾기
@@ -151,6 +158,7 @@ function handleNavClick(e) {
     }
     
     if (!linkElement) {
+        console.warn("not element")
         return;
     }
     
