@@ -242,7 +242,7 @@ async function loadSurveyData() {
     }
 }
 
-// 부스 데이터 로드 및 차트 생성
+// 부스 데이터 로드 및 차트 생성 (바 차트)
 async function loadBoothData() {
     try {
         const response = await fetch(`/api/admin/dashboard`);
@@ -259,21 +259,43 @@ async function loadBoothData() {
             const counts = data.data.boothStats.map(b => b.count);
 
             boothChart = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
+                        label: '참여 인원수',
                         data: counts,
                         backgroundColor: [
                             'rgba(27, 79, 158, 0.8)',
                             'rgba(245, 166, 35, 0.8)',
                             'rgba(10, 37, 64, 0.8)',
                             'rgba(232, 244, 248, 0.8)'
-                        ]
+                        ],
+                        borderColor: [
+                            'rgba(27, 79, 158, 1)',
+                            'rgba(245, 166, 35, 1)',
+                            'rgba(10, 37, 64, 1)',
+                            'rgba(232, 244, 248, 1)'
+                        ],
+                        borderWidth: 1
                     }]
                 },
                 options: {
-                    responsive: true
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
                 }
             });
         }

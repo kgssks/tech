@@ -377,16 +377,20 @@
                 </div>
             </div>
 
-            <!-- 설문 결과 차트 -->
-            <div class="chart-container">
-                <h3>설문 결과</h3>
-                <canvas id="surveyChart"></canvas>
-            </div>
-
-            <!-- 부스 참여 현황 -->
-            <div class="chart-container">
-                <h3>부스별 참여 현황</h3>
-                <canvas id="boothChart"></canvas>
+            <!-- 설문 결과 및 부스 참여 현황 차트 (같은 로우에 좌우 배치) -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3>설문 결과</h3>
+                        <canvas id="surveyChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h3>부스별 참여 현황</h3>
+                        <canvas id="boothChart"></canvas>
+                    </div>
+                </div>
             </div>
 
             <!-- QR 코드 생성 -->
