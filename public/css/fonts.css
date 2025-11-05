@@ -1,0 +1,53 @@
+@font-face {
+    font-family: 'KBFGDisplay';
+    font-weight: 700;
+    src: url('/asset/fonts/KBFGDisplayB.eot');
+    src: url('/asset/fonts/KBFGDisplayB.eot?#iefix') format('embedded-opentype'),
+         url('/asset/fonts/KBFGDisplayB.woff') format('woff'),
+         url('/asset/fonts/KBFGDisplayB.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'KBFGDisplay';
+    font-weight: 500;
+    src: url('/asset/fonts/KBFGDisplayM.eot');
+    src: url('/asset/fonts/KBFGDisplayM.eot?#iefix') format('embedded-opentype'),
+         url('/asset/fonts/KBFGDisplayM.woff') format('woff'),
+         url('/asset/fonts/KBFGDisplayM.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'KBFGText';
+    font-weight: 700;
+    src: url('/asset/fonts/KBFGTextB.eot');
+    src: url('/asset/fonts/KBFGTextB.eot?#iefix') format('embedded-opentype'),
+         url('/asset/fonts/KBFGTextB.woff') format('woff'),
+         url('/asset/fonts/KBFGTextB.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'KBFGText';
+    font-weight: 500;
+    src: url('/asset/fonts/KBFGTextM.eot');
+    src: url('/asset/fonts/KBFGTextM.eot?#iefix') format('embedded-opentype'),
+         url('/asset/fonts/KBFGTextM.woff') format('woff'),
+         url('/asset/fonts/KBFGTextM.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'KBFGText';
+    font-weight: 300;
+    src: url('/asset/fonts/KBFGTextL.eot');
+    src: url('/asset/fonts/KBFGTextL.eot?#iefix') format('embedded-opentype'),
+         url('/asset/fonts/KBFGTextL.woff') format('woff'),
+         url('/asset/fonts/KBFGTextL.ttf') format('truetype');
+}
+
+body {
+    font-family: 'KBFGText', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'KBFGDisplay', sans-serif;
+}
+

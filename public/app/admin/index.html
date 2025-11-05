@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - KB금융 AI 기술 테크포럼</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/fonts.css">
+    <link rel="icon" type="image/png" href="/asset/tech-forum-stamp-off.png">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--kb-primary);
+        }
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .qr-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        .qr-code-display {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .qr-code-display img {
+            max-width: 200px;
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            background: white;
+        }
+        .lottery-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .lottery-wheel-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--kb-light) 0%, #ffffff 100%);
+            border-radius: 12px;
+            border: 3px solid var(--kb-primary);
+            margin: 2rem 0;
+        }
+        .lottery-wheels-row {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .lottery-wheel-wrapper {
+            text-align: center;
+            position: relative;
+            padding: 0 15px; /* 화살표가 보이도록 좌우 패딩 */
+            overflow: visible; /* 화살표가 보이도록 */
+        }
+        .lottery-wheel-label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--kb-gray);
+            margin-bottom: 1rem;
+        }
+        .lottery-wheel {
+            width: 150px;
+            height: 200px;
+            border: 4px solid var(--kb-primary);
+            border-radius: 12px;
+            overflow: hidden; /* 내부 숫자 콘텐츠는 잘리도록 */
+            background: white;
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        /* 통과 영역 하이라이트 배경 (화살표 사이 영역) */
+        .lottery-wheel::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(to bottom, 
+                rgba(255, 188, 0, 0.15) 0%,
+                rgba(255, 188, 0, 0.25) 50%,
+                rgba(255, 188, 0, 0.15) 100%);
+            transform: translateY(-50%);
+            z-index: 10;
+            pointer-events: none;
+            border-top: 2px solid rgba(255, 188, 0, 0.4);
+            border-bottom: 2px solid rgba(255, 188, 0, 0.4);
+        }
+        /* 룰렛 내부 숫자들이 보이도록 보장 */
+        .lottery-wheel .wheel-inner {
+            z-index: 1;
+        }
+        /* 왼쪽 화살표 (중앙을 가리킴) - 꼭지점이 안쪽을 향하도록 */
+        .lottery-wheel .arrow-left {
+            position: absolute;
+            top: 50%;
+            left: -18px;
+            width: 0;
+            height: 0;
+            border-top: 18px solid transparent;
+            border-bottom: 18px solid transparent;
+            border-right: 22px solid var(--kb-primary);
+            z-index: 20;
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+        /* 오른쪽 화살표 (중앙을 가리킴) - 꼭지점이 안쪽을 향하도록 */
+        .lottery-wheel .arrow-right {
+            position: absolute;
+            top: 50%;
+            right: -18px;
+            width: 0;
+            height: 0;
+            border-top: 18px solid transparent;
+            border-bottom: 18px solid transparent;
+            border-left: 22px solid var(--kb-primary);
+            z-index: 20;
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+        /* 룰렛 내부 컨테이너 */
+        .wheel-inner {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 100% !important;
+            transition: transform 0s linear;
+            padding: 0;
+            margin: 0;
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
+            z-index: 1 !important;
+            contain: layout style paint;
+        }
+        .wheel-inner.spinning {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 100% !important;
+            transition: transform 9s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            will-change: transform;
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
+            z-index: 1 !important;
+            contain: layout style paint;
+        }
+        /* 마지막 10% 구간에서 속도 감소 (서서히 줄이는 애니메이션) */
+        .wheel-inner.spinning-slow {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 100% !important;
+            transition: transform 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            will-change: transform;
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
+            z-index: 1 !important;
+            contain: layout style paint;
+        }
+        .wheel-item {
+            height: 40px;
+            min-height: 40px;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--kb-gray) !important;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .wheel-item:nth-child(odd) {
+            background: var(--kb-light);
+        }
+        .wheel-item.selected {
+            /* 반전 효과: 배경과 글자색 반전 */
+            background: var(--kb-primary) !important;
+            color: white !important;
+            font-size: 2.5rem;
+            font-weight: 900;
+            box-shadow: 0 0 25px rgba(255, 188, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.3);
+            animation: pulse 0.5s ease-in-out, selectedGlow 2s ease-in-out infinite;
+            z-index: 10;
+            position: relative;
+            border: 3px solid var(--kb-primary);
+            border-radius: 4px;
+            transform: scale(1.05);
+        }
+        @keyframes selectedGlow {
+            0%, 100% {
+                box-shadow: 0 0 25px rgba(255, 188, 0, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 35px rgba(255, 188, 0, 1), inset 0 0 20px rgba(255, 255, 255, 0.5);
+            }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1.05); }
+            50% { transform: scale(1.15); }
+        }
+        .lottery-result {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--kb-primary) 0%, var(--kb-yellow-negative) 100%);
+            border-radius: 12px;
+            color: white;
+            margin-top: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .lottery-result-number {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .lottery-result-winner {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+        }
+        .lottery-result-winner h4 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        #drawLotteryBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .digit-wheel {
+            width: 80px;
+            height: 120px;
+            border: 2px solid var(--kb-primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: bold;
+            background: white;
+            color: var(--kb-primary);
+        }
+        .drawn-number {
+            font-size: 4rem;
+            font-weight: bold;
+            color: var(--kb-primary);
+            margin: 2rem 0;
+        }
+        /* QR 스캔 모달 스타일 */
+        #admin-qr-reader {
+            min-height: 300px;
+        }
+        #admin-qr-reader video {
+            width: 100%;
+            border-radius: 8px;
+        }
+        #admin-qr-reader-results {
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">
+                    <img src="/asset/tech-forum-stamp-off.png" alt="KB Tech Forum" class="brand-logo">
+                    KB Tech Forum 관리자
+                </a>
+                <button class="btn btn-sm btn-outline-light" onclick="logout()">로그아웃</button>
+            </div>
+        </nav>
+    </header>
+
+    <div class="admin-container">
+        <!-- 로그인 폼 -->
+        <div id="loginSection" class="mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="registration-form">
+                        <h2 class="text-center mb-4">관리자 로그인</h2>
+                        <form id="adminLoginForm">
+                            <div class="mb-3">
+                                <label for="adminUsername" class="form-label">관리자 ID</label>
+                                <input type="text" class="form-control" id="adminUsername" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="adminPassword" class="form-label">비밀번호</label>
+                                <input type="password" class="form-control" id="adminPassword" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg w-100">로그인</button>
+                        </form>
+                        <div id="adminLoginMessage" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 대시보드 -->
+        <div id="dashboardSection" style="display: none;">
+            <h1 class="section-title">관리자 대시보드</h1>
+
+            <!-- 통계 카드 -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">전체 참가자</div>
+                        <div class="stat-number" id="totalUsers">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">설문 참여</div>
+                        <div class="stat-number" id="totalSurveys">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">모바일상품권 추첨대상</div>
+                        <div class="stat-number" id="totalPrizes">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-label">부스 참여</div>
+                        <div class="stat-number" id="totalBooths">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 설문 결과 차트 -->
+            <div class="chart-container">
+                <h3>설문 결과</h3>
+                <canvas id="surveyChart"></canvas>
+            </div>
+
+            <!-- 부스 참여 현황 -->
+            <div class="chart-container">
+                <h3>부스별 참여 현황</h3>
+                <canvas id="boothChart"></canvas>
+            </div>
+
+            <!-- QR 코드 생성 -->
+            <div class="qr-section">
+                <h3>부스 QR 코드 생성</h3>
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth1')">부스1 QR 생성</button>
+                        <div id="booth1QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth2')">부스2 QR 생성</button>
+                        <div id="booth2QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth3')">부스3 QR 생성</button>
+                        <div id="booth3QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth4')">부스4 QR 생성</button>
+                        <div id="booth4QR" class="qr-code-display mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR 코드 팝업 모달 -->
+            <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="qrCodeModalLabel">부스 QR 코드</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <canvas id="qrCodeCanvas" style="max-width: 100%; height: auto;"></canvas>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="downloadQRCode()">
+                                    <i class="bi bi-download"></i> PNG 다운로드
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 통합설문 QR -->
+            <div class="qr-section">
+                <h3>통합설문 QR</h3>
+                <p class="text-muted mb-3">5점 척도 통합 설문 QR 코드 생성</p>
+                <button class="btn btn-primary" onclick="generateSurveyQR()">통합설문 QR 생성</button>
+                <div id="surveyQRDisplay" class="qr-code-display mt-2"></div>
+            </div>
+
+            <!-- 경품 추첨 -->
+            <div class="lottery-section">
+                <h3>경품 추첨</h3>
+                <p class="text-muted mb-3" id="lotteryInfo">전체 참여인원 확인 중...</p>
+                
+                <!-- 룰렛 컨테이너 -->
+                <div class="lottery-wheel-container mb-4">
+                    <div class="lottery-wheels-row">
+                        <!-- 100자리 룰렛 -->
+                        <div class="lottery-wheel-wrapper">
+                            <div class="lottery-wheel-label">백의자리</div>
+                            <div class="lottery-wheel" id="wheel1">
+                                <div class="arrow-left"></div>
+                                <div class="arrow-right"></div>
+                                <div class="wheel-inner" id="wheelInner1">
+                                    <!-- 동적으로 생성됨 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 10자리 룰렛 -->
+                        <div class="lottery-wheel-wrapper">
+                            <div class="lottery-wheel-label">십의자리</div>
+                            <div class="lottery-wheel" id="wheel2">
+                                <div class="arrow-left"></div>
+                                <div class="arrow-right"></div>
+                                <div class="wheel-inner" id="wheelInner2">
+                                    <!-- 동적으로 생성됨 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 1자리 룰렛 -->
+                        <div class="lottery-wheel-wrapper">
+                            <div class="lottery-wheel-label">일의자리</div>
+                            <div class="lottery-wheel" id="wheel3">
+                                <div class="arrow-left"></div>
+                                <div class="arrow-right"></div>
+                                <div class="wheel-inner" id="wheelInner3">
+                                    <!-- 동적으로 생성됨 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary btn-lg" id="drawLotteryBtn" onclick="drawLottery()">추첨하기</button>
+                <div id="lotteryResult" class="mt-4"></div>
+            </div>
+
+            <!-- 데이터 조회 탭 -->
+            <ul class="nav nav-tabs mt-4" id="dataTabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#users">참가자 목록</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#booths">부스 참여</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#prizes">모바일상품권 추첨대상</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#surveys">설문 응답</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#logs" onclick="loadLogs()">웹로그</a>
+                </li>
+            </ul>
+
+            <div class="tab-content mt-3">
+                <div class="tab-pane fade show active" id="users">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>직원번호</th>
+                                    <th>이름</th>
+                                    <th>부서</th>
+                                    <th>직급</th>
+                                    <th>부스 참여</th>
+                                    <th>경품 지급</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="booths">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>부서</th>
+                                    <th>직급</th>
+                                    <th>부스 코드</th>
+                                    <th>참여 시간</th>
+                                </tr>
+                            </thead>
+                            <tbody id="boothsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="prizes">
+                    <h4 class="mb-3">모바일상품권 추첨대상</h4>
+                    <p class="text-muted mb-3">부스 3개 이상 참여한 사용자 목록</p>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>이름</th>
+                                    <th>사번</th>
+                                    <th>부서</th>
+                                    <th>직급</th>
+                                    <th>참여 부스 수</th>
+                                    <th>참여 부스</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prizesTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-center">로딩 중...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="surveys">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr id="surveysTableHeader">
+                                    <th>제출일시</th>
+                                    <th>전반적 운영</th>
+                                    <th>부스 운영</th>
+                                    <th>세션 운영</th>
+                                    <th>홈페이지</th>
+                                    <th>경품</th>
+                                    <th>만족한점</th>
+                                    <th>개선사항</th>
+                                </tr>
+                            </thead>
+                            <tbody id="surveysTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="logs">
+                    <div class="mb-3">
+                        <h4>로그 필터</h4>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <input type="date" class="form-control" id="logStartDate" placeholder="시작일">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" class="form-control" id="logEndDate" placeholder="종료일">
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" class="form-control" id="logPath" placeholder="경로">
+                            </div>
+                            <div class="col-md-2">
+                                <input type="text" class="form-control" id="logIP" placeholder="IP 주소">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" onclick="loadLogs()">조회</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>시간</th>
+                                    <th>IP 주소</th>
+                                    <th>메서드</th>
+                                    <th>경로</th>
+                                    <th>상태</th>
+                                    <th>사용자 정보</th>
+                                    <th>응답시간</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="logsPagination" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="/js/config.js"></script>
+    <script src="/js/logger.js"></script>
+    <script src="/js/admin.js"></script>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 KB금융 테크그룹. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
+

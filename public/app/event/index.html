@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이벤트 - KB금융 AI 기술 테크포럼</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/fonts.css">
+    <link rel="icon" type="image/png" href="/asset/tech-forum-stamp-off.png">
+    <style>
+        .stamp-container {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+        .stamp {
+            width: 100px;
+            height: 100px;
+            background-image: url('/asset/tech-forum-stamp-off.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .stamp.active {
+            background-image: url('/asset/tech-forum-stamp-on.png');
+        }
+        .stamp-number {
+            position: absolute;
+            bottom: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .stamp.active .stamp-number {
+            color: var(--kb-secondary);
+        }
+        /* QR 스캔 모달 스타일 */
+        #qr-reader {
+            min-height: 300px;
+        }
+        #qr-reader video {
+            width: 100%;
+            border-radius: 8px;
+        }
+        #qr-reader-results {
+            min-height: 50px;
+        }
+        .qr-section {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+        .qr-code {
+            max-width: 300px;
+            margin: 1rem auto;
+        }
+        .lottery-info {
+            background: var(--kb-light);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        .participant-info-section {
+            margin-top: 1rem;
+        }
+        .participant-info-content {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .participant-name,
+        .participant-dept {
+            flex: 1;
+            min-width: 150px;
+        }
+        .participant-actions {
+            margin-left: auto;
+        }
+        @media (max-width: 576px) {
+            .participant-info-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .participant-actions {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+        /* 추첨상품 안내 모달 스타일 */
+        .prize-card {
+            padding: 1.5rem;
+            border: 2px solid var(--kb-light);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        .prize-card:hover {
+            border-color: var(--kb-primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-5px);
+        }
+        .prize-placeholder {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+            background: var(--kb-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .prize-rank {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--kb-primary) !important;
+        }
+        .prize-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--kb-gray);
+        }
+        .prize-count {
+            font-size: 1rem;
+        }
+        .prize-count strong {
+            color: var(--kb-primary);
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <a class="navbar-brand" href="/">
+                    <img src="/asset/tech-forum-stamp-off.png" alt="KB Tech Forum" class="brand-logo">
+                    KB Tech Forum
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container mt-4">
+        <div id="authCheckMessage" style="display: none;" class="alert alert-error">
+            인증이 필요합니다. 잠시 후 인증 페이지로 이동합니다...
+        </div>
+        
+        <!-- 참가자 정보 섹션 -->
+        <div class="participant-info-section mb-4" id="participantInfo" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">참가자 정보</h5>
+                    <div class="participant-info-content">
+                        <div class="participant-name">
+                            <strong>이름:</strong> <span id="eventUserName"></span>
+                        </div>
+                        <div class="participant-dept">
+                            <strong>부서:</strong> <span id="eventUserDept"></span>
+                        </div>
+                        <div class="participant-actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="logout()">로그아웃</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h1 class="section-title">경품 이벤트</h1>
+        
+        <!-- 경품 추첨 번호 -->
+        <div class="lottery-info">
+            <h3>내 추첨 번호</h3>
+            <p id="lotteryNumber" style="font-size: 2rem; font-weight: bold; color: var(--kb-primary);">-</p>
+            <button class="btn btn-outline-primary mt-3" onclick="showPrizeInfo()">추첨상품 안내</button>
+        </div>
+
+        <!-- 스탬프 영역 -->
+        <div class="stamp-container">
+            <div class="stamp" id="stamp1">
+                <span class="stamp-number">1</span>
+            </div>
+            <div class="stamp" id="stamp2">
+                <span class="stamp-number">2</span>
+            </div>
+            <div class="stamp" id="stamp3">
+                <span class="stamp-number">3</span>
+            </div>
+        </div>
+
+        <div class="text-center mb-4">
+            <p>4개 부스 중 3개 이상 방문하여 스탬프를 완성하세요!</p>
+            <p id="stampCount">현재 <span id="stampCountValue">0</span>개 완료</p>
+        </div>
+
+        <!-- QR 스캔 버튼 -->
+        <div class="text-center mb-4">
+            <button class="btn btn-primary btn-lg" onclick="scanQR()">QR 코드 스캔</button>
+        </div>
+
+        <!-- 모바일상품 추첨권 안내 (3개 이상 완료 시) -->
+        <div id="prizeQRSection" style="display: none;">
+            <div class="qr-section">
+                <h3>모바일상품 추첨권</h3>
+                <div class="alert alert-info" style="background-color: var(--kb-light); border: 2px solid var(--kb-primary); padding: 2rem; border-radius: 8px; text-align: center;">
+                    <p style="font-size: 1.1rem; line-height: 1.8; color: var(--kb-gray); margin: 0;">
+                        부스 체험행사에 참여해 주셔서 감사합니다.<br>
+                        모바일 상품권 추첨권이 발급되었습니다.<br>
+                        추첨은 12월 중 진행 될 예정으로 당첨자에게 개별 발송됩니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 부스 정보 -->
+        <div class="mt-4">
+            <h3>체험 부스</h3>
+            <ul class="list-group">
+                <li class="list-group-item">부스1 - KB Agent 시연 (금융AI센터)</li>
+                <li class="list-group-item">부스2 - 바이브코딩 체험Zone (테크기획부)</li>
+                <li class="list-group-item">부스3 - AI기반 코드 어시스턴트 체험 (LG CNS)</li>
+                <li class="list-group-item">부스4 - IT-CoP 우수사례 (테크그룹)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 추첨상품 안내 모달 -->
+    <div class="modal fade" id="prizeInfoModal" tabindex="-1" aria-labelledby="prizeInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="prizeInfoModalLabel">추첨상품 안내</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <!-- 1등 상품 -->
+                        <div class="col-md-4">
+                            <div class="prize-card text-center">
+                                <div class="prize-image mb-3">
+                                    <div class="prize-placeholder first-place">
+                                        <i class="bi bi-tablet" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                    </div>
+                                </div>
+                                <h4 class="prize-rank text-primary mb-2">1등</h4>
+                                <h5 class="prize-name mb-2">아이패드</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>1명</strong></p>
+                            </div>
+                        </div>
+                        <!-- 2등 상품 -->
+                        <div class="col-md-4">
+                            <div class="prize-card text-center">
+                                <div class="prize-image mb-3">
+                                    <div class="prize-placeholder second-place">
+                                        <i class="bi bi-earbuds" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                    </div>
+                                </div>
+                                <h4 class="prize-rank text-primary mb-2">2등</h4>
+                                <h5 class="prize-name mb-2">에어팟 프로</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>2명</strong></p>
+                            </div>
+                        </div>
+                        <!-- 3등 상품 -->
+                        <div class="col-md-4">
+                            <div class="prize-card text-center">
+                                <div class="prize-image mb-3">
+                                    <div class="prize-placeholder third-place">
+                                        <i class="bi bi-smartwatch" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                    </div>
+                                </div>
+                                <h4 class="prize-rank text-primary mb-2">3등</h4>
+                                <h5 class="prize-name mb-2">갤럭시워치</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>5명</strong></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="/js/config.js"></script>
+    <script src="/js/logger.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/event.js"></script>
+    <script>
+        // URL 파라미터에서 QR 데이터 자동 처리
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const encryptedData = urlParams.get('data');
+            if (encryptedData) {
+                submitQRScan(encryptedData);
+                // URL에서 파라미터 제거
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+    </script>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 KB금융 테크그룹. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
+

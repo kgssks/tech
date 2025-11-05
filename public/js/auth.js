@@ -1,98 +1,161 @@
-// 인증 관련 JavaScript
 
-document.addEventListener('DOMContentLoaded', function() {
-    // 토큰 확인
-    if (AIForum.StorageManager.isTokenValid()) {
-        window.location.href = '/app/event/data';
-        return;
-    }
-    
-    setupAuthForm();
-});
+// 로컬스토리지에서 토큰 가져오기
+function getToken() {
+    return localStorage.getItem('forumUser');
+}
 
-function setupAuthForm() {
-    const loginForm = document.getElementById('loginForm');
-    
-    if (loginForm) {
-        loginForm.addEventListener('submit', handleLogin);
+// 로컬스토리지에 토큰 저장
+function setToken(token) {
+    localStorage.setItem('forumUser', token);
+}
+
+// 토큰 삭제
+function removeToken() {
+    localStorage.removeItem('forumUser');
+}
+
+// 인증 확인
+async function checkAuth() {
+    const token = getToken();
+    if (!token) {
+        return null;
     }
-    
-    // 입력 필드 포맷팅
-    const phoneInput = document.getElementById('phoneLast4');
-    if (phoneInput) {
-        phoneInput.addEventListener('input', function(e) {
-            // 숫자만 입력 허용
-            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+
+    try {
+        const response = await fetch('/api/auth/verify', {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
         });
+
+        const data = await response.json();
+        if (data.success) {
+            return data.user;
+        } else {
+            removeToken();
+            return null;
+        }
+    } catch (error) {
+        console.error('인증 확인 오류:', error);
+        return null;
     }
 }
 
-async function handleLogin(e) {
-    e.preventDefault();
-    
-    const employeeId = document.getElementById('employeeId').value.trim();
-    const phoneLast4 = document.getElementById('phoneLast4').value.trim();
-    
-    // 유효성 검사
-    if (!employeeId) {
-        AIForum.showAlert('직원번호를 입력해주세요.', 'warning');
-        document.getElementById('employeeId').focus();
-        return;
+// 사용자 정보 표시
+async function displayUserInfo() {
+    const user = await checkAuth();
+    const userInfoDiv = document.getElementById('userInfo');
+    const userNameSpan = document.getElementById('userName');
+    const userDeptSpan = document.getElementById('userDept');
+
+    if (user && userInfoDiv) {
+        if (userNameSpan) userNameSpan.textContent = `${user.empname} ${user.posname}`;
+        if (userDeptSpan) userDeptSpan.textContent = user.deptname;
+        userInfoDiv.style.display = 'flex';
+    } else if (userInfoDiv) {
+        userInfoDiv.style.display = 'none';
     }
     
-    if (!phoneLast4 || phoneLast4.length !== 4) {
-        AIForum.showAlert('휴대번호 뒷4자리를 정확히 입력해주세요.', 'warning');
-        document.getElementById('phoneLast4').focus();
-        return;
+    // 참가신청 섹션 업데이트 (main.js의 함수 사용)
+    if (typeof updateRegistrationSection === 'function') {
+        await updateRegistrationSection();
     }
-    
+}
+
+// 로그인 이력 기록 (로컬스토리지)
+function setLoginHistory() {
     try {
-        showLoading(true);
-        
-        const response = await fetch('/api/auth', {
+        localStorage.setItem('forumLoginHistory', 'true');
+        localStorage.setItem('forumLoginHistoryDate', new Date().toISOString());
+    } catch (error) {
+        console.error('로그인 이력 저장 오류:', error);
+    }
+}
+
+// 로그인 이력 확인
+function hasLoginHistory() {
+    try {
+        return localStorage.getItem('forumLoginHistory') === 'true';
+    } catch (error) {
+        return false;
+    }
+}
+
+// 로그인
+async function login(empno, phoneLast) {
+    try {
+        const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                employee_id: employeeId,
-                phone_last4: phoneLast4
+                empno,
+                lastNumber: phoneLast
             })
         });
-        
+
         const data = await response.json();
-        
-        if (response.ok) {
-            // 토큰 저장
-            AIForum.StorageManager.setToken(data.token);
-            
-            AIForum.showAlert('로그인에 성공했습니다!', 'success');
-            
-            // 잠시 후 이벤트 페이지로 이동
-            setTimeout(() => {
-                window.location.href = '/app/event/data';
-            }, 1500);
+
+        if (data.success) {
+            setToken(data.token);
+            // 로그인 이력 기록
+            setLoginHistory();
+            return { success: true, user: data.user };
         } else {
-            AIForum.showAlert(data.error || '로그인에 실패했습니다.', 'danger');
+            return { success: false, message: data.message || '로그인에 실패했습니다.' };
         }
     } catch (error) {
-        AIForum.showAlert('네트워크 오류가 발생했습니다. 다시 시도해주세요.', 'danger');
-    } finally {
-        showLoading(false);
+        console.error('로그인 오류:', error);
+        return { success: false, message: '네트워크 오류가 발생했습니다. 다시 시도해주세요.' };
     }
 }
 
-function showLoading(show) {
-    const submitBtn = document.querySelector('button[type="submit"]');
-    if (submitBtn) {
-        if (show) {
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span> 로그인 중...';
-        } else {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>로그인';
+// 전역 스코프에 노출 (다른 스크립트에서 사용 가능하도록)
+window.login = login;
+window.checkAuth = checkAuth;
+window.displayUserInfo = displayUserInfo;
+window.hasLoginHistory = hasLoginHistory;
+
+// 로그아웃
+function logout() {
+    removeToken();
+    window.location.href = '/';
+}
+
+// 경로 보호 (인증 필요)
+async function protectRoute() {
+    const path = window.location.pathname;
+    if (path.startsWith('/app/event/') && !path.includes('/auth')) {
+        const token = getToken();
+        if (!token) {
+            window.location.href = '/app/event/auth.html';
+            return false;
+        }
+        
+        // 토큰 유효성 검증
+        const user = await checkAuth();
+        if (!user) {
+            removeToken();
+            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+            window.location.href = '/app/event/auth.html';
+            return false;
         }
     }
+    return true;
 }
 
+// 페이지 로드 시 인증 확인
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', async () => {
+        await displayUserInfo();
+        await protectRoute();
+    });
+} else {
+    (async () => {
+        await displayUserInfo();
+        await protectRoute();
+    })();
+}
 

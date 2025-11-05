@@ -1,564 +1,396 @@
-// AI 기술테크포럼 2024 메인 JavaScript
 
-// 전역 변수
-const API_BASE_URL = window.location.origin;
-const AUTH_TOKEN_KEY = 'auth_token';
-const TOKEN_EXPIRY_KEY = 'token_expiry_date';
-
-// DOM 로드 완료 시 실행
-document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    setupScrollAnimations();
-    setTimeout(()=>{
-        setupEventListeners();
-    }, 1000)
-
-});
-
-// 앱 초기화
-function initializeApp() {
-    // 스무스 스크롤 설정
-    setupSmoothScroll();
+// 참가신청 폼 제출 핸들러
+async function handleRegistrationSubmit(e) {
+    e.preventDefault();
+    e.stopPropagation();
     
-    // 네비게이션 활성화
-    setupNavigation();
-    
-    // 로그인 상태 확인 및 UI 업데이트
-    checkLoginStatus();
-    
-    // 폼 유효성 검사 설정
-    setupFormValidation();
-}
-
-// 로그인 상태 확인 및 UI 업데이트
-function checkLoginStatus() {
-    const isLoggedIn = StorageManager.isTokenValid();
-    
-    if (isLoggedIn) {
-        // 참가신청 버튼 숨기기
-        hideRegistrationButtons();
-        
-        // 참가신청 섹션 숨기기
-        hideRegistrationSection();
-    }
-}
-
-// 참가신청 버튼 숨기기
-function hideRegistrationButtons() {
-    // 히어로 섹션의 참가신청 버튼 숨기기
-    const heroRegistrationBtn = document.querySelector('.hero-section a[href="#registration"]');
-    if (heroRegistrationBtn) {
-        heroRegistrationBtn.style.display = 'none';
-    }
-    
-    // 네비게이션의 참가신청 링크 숨기기
-    const navRegistrationLink = document.querySelector('.nav-link[href="#registration"]');
-    if (navRegistrationLink) {
-        navRegistrationLink.style.display = 'none';
-    }
-}
-
-// 참가신청 섹션 숨기기
-function hideRegistrationSection() {
-    const registrationSection = document.getElementById('registration');
-    if (registrationSection) {
-        registrationSection.style.display = 'none';
-    }
-}
-
-// 이벤트 리스너 설정
-function setupEventListeners() {
-    // 참가신청 폼
     const registrationForm = document.getElementById('registrationForm');
-    if (registrationForm) {
-        registrationForm.addEventListener('submit', handleRegistration);
-    }
-    
-    // 네비게이션 링크
-    const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
-    navLinks.forEach(link => {
-        link.addEventListener('click', handleNavClick);
-        console.log("ckick nav check", link)
-    });
-    
-    //모든 앵커 링크에 스크롤 기능 추가 (중복 방지)
-    const allAnchorLinks = document.querySelectorAll('a[href^="#"]');
-    allAnchorLinks.forEach(link => {
-        // 이미 이벤트 리스너가 있는지 확인
-        if (!link.hasAttribute('data-scroll-handler')) {
-            link.setAttribute('data-scroll-handler', 'true');
-            console.log("ckick anchor check", link)
-            link.addEventListener('click', handleNavClick);
-        }
-    });
-    
-    // 스크롤 이벤트
-    window.addEventListener('scroll', handleScroll);
-}
+    const empno = document.getElementById('empno');
+    const phoneLast = document.getElementById('phoneLast');
+    const messageDiv = document.getElementById('registrationMessage');
 
-// 스무스 스크롤 설정
-function setupSmoothScroll() {
-    // CSS로 스무스 스크롤 활성화
-    document.documentElement.style.scrollBehavior = 'smooth';
-}
-
-// 네비게이션 설정
-function setupNavigation() {
-    const navbar = document.querySelector('.navbar');
-    
-    // 스크롤 시 네비게이션 스타일 변경
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            navbar.classList.add('navbar-scrolled');
-        } else {
-            navbar.classList.remove('navbar-scrolled');
-        }
-    });
-}
-
-// 폼 유효성 검사 설정
-function setupFormValidation() {
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-        form.addEventListener('submit', validateForm);
-    });
-}
-
-// 스크롤 애니메이션 설정
-function setupScrollAnimations() {
-    const animateElements = document.querySelectorAll('.card, .timeline-item');
-    
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate');
-            }
-        });
-    }, {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    });
-    
-    animateElements.forEach(element => {
-        element.classList.add('scroll-animate');
-        observer.observe(element);
-    });
-}
-
-// 네비게이션 클릭 처리
-function handleNavClick(e) {
-
-    console.log("handleNav")
-    e.preventDefault();
-    
-    // 클릭된 요소가 링크인지 확인하고, 아니면 부모 요소에서 href 찾기
-    let linkElement = e.target;
-    while (linkElement && !linkElement.hasAttribute('href')) {
-        linkElement = linkElement.parentElement;
-    }
-    
-    if (!linkElement) {
-        console.warn("not element")
+    if (!empno || !phoneLast || !messageDiv) {
+        console.error('참가신청 폼 요소를 찾을 수 없습니다.');
         return;
     }
-    
-    const targetId = linkElement.getAttribute('href');
-    const targetElement = document.querySelector(targetId);
-    
-    if (targetElement) {
-        // 네비게이션 높이를 동적으로 계산
-        const navbar = document.querySelector('.navbar');
-        const navbarHeight = navbar ? navbar.offsetHeight : 80;
-        const offsetTop = targetElement.offsetTop - navbarHeight;
-        
-        window.scrollTo({
-            top: offsetTop,
-            behavior: 'smooth'
-        });
-    }
-}
 
-// 스크롤 이벤트 처리
-function handleScroll() {
-    // 네비게이션 활성화
-    updateActiveNavLink();
-}
+    const empnoValue = empno.value.trim();
+    const phoneLastValue = phoneLast.value.trim();
 
-// 활성 네비게이션 링크 업데이트
-function updateActiveNavLink() {
-    const sections = document.querySelectorAll('section[id]');
-    const navLinks = document.querySelectorAll('.nav-link[href^="#"]');
-    
-    let currentSection = '';
-    
-    sections.forEach(section => {
-        const sectionTop = section.offsetTop - 100;
-        const sectionHeight = section.offsetHeight;
-        
-        if (window.scrollY >= sectionTop && window.scrollY < sectionTop + sectionHeight) {
-            currentSection = section.getAttribute('id');
-        }
-    });
-    
-    navLinks.forEach(link => {
-        link.classList.remove('active');
-        if (link.getAttribute('href') === `#${currentSection}`) {
-            link.classList.add('active');
-        }
-    });
-}
-
-// 폼 유효성 검사
-function validateForm(e) {
-    const form = e.target;
-    const inputs = form.querySelectorAll('input[required]');
-    let isValid = true;
-    
-    inputs.forEach(input => {
-        if (!input.value.trim()) {
-            showAlert('모든 필수 항목을 입력해주세요.', 'warning');
-            input.focus();
-            isValid = false;
-            return false;
-        }
-    });
-    
-    if (!isValid) {
-        e.preventDefault();
-    }
-}
-
-// 참가신청 처리
-async function handleRegistration(e) {
-    e.preventDefault();
-    
-    const employeeId = document.getElementById('employeeId').value;
-    const phoneLast4 = document.getElementById('phoneLast4').value;
-    
-    if (!employeeId || !phoneLast4) {
-        showAlert('모든 필수 항목을 입력해주세요.', 'warning');
+    if (!empnoValue || !phoneLastValue) {
+        showMessage(messageDiv, '직원번호와 휴대번호 뒷4자리를 입력해주세요.', 'error');
         return;
     }
-    
-    if (phoneLast4.length !== 4 || !/^\d{4}$/.test(phoneLast4)) {
-        showAlert('휴대번호 뒷4자리는 숫자 4자리여야 합니다.', 'warning');
+
+    if (phoneLastValue.length !== 4) {
+        showMessage(messageDiv, '휴대번호 뒷4자리를 정확히 입력해주세요.', 'error');
         return;
     }
-    
+
+    // 버튼 비활성화 (중복 제출 방지)
+    const submitButton = registrationForm.querySelector('button[type="submit"]');
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = '처리 중...';
+    }
+
     try {
-        showLoading(true);
+        // login 함수가 정의되어 있는지 확인
+        if (typeof login !== 'function') {
+            console.error('login 함수를 찾을 수 없습니다.');
+            showMessage(messageDiv, '시스템 오류가 발생했습니다. 페이지를 새로고침해주세요.', 'error');
+            if (submitButton) {
+                submitButton.disabled = false;
+                // 로그인 이력에 따라 버튼 텍스트 업데이트
+                updateRegistrationButtonTitle();
+            }
+            return;
+        }
+
+        const result = await login(empnoValue, phoneLastValue);
         
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                employee_id: employeeId,
-                phone_last4: phoneLast4
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            showAlert('참가신청이 완료되었습니다! 이제 로그인하여 이벤트에 참여하세요.', 'success');
-            document.getElementById('registrationForm').reset();
+        if (result.success) {
+            // 사용자 정보 표시 및 UI 업데이트
+            try {
+                if (typeof displayUserInfo === 'function') {
+                    await displayUserInfo();
+                }
+                if (typeof updateEventButton === 'function') {
+                    await updateEventButton();
+                }
+                // 참가신청 섹션 숨김 처리
+                await updateRegistrationSection();
+            } catch (updateError) {
+                console.error('UI 업데이트 오류:', updateError);
+            }
+            
+            // 사용자명 포함 환영 메시지 표시
+            const userName = result.user ? `${result.user.empname} ${result.user.posname || ''}`.trim() : '회원';
+            const welcomeMessage = `${userName}님, 환영합니다!<br><small>잠시 후 이벤트 페이지로 이동합니다...</small>`;
+            // 페이지 이동 전까지 메시지 유지 (autoHideDelay를 0으로 설정하여 자동 삭제 방지)
+            showMessage(messageDiv, welcomeMessage, 'success', 0);
+            
+            // 폼 초기화 (입력 필드만 클리어)
+            registrationForm.reset();
+            
+            // 버튼 상태 복원 (성공했으므로 더 이상 제출할 필요 없음)
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = '참가신청 완료';
+                submitButton.classList.remove('btn-primary');
+                submitButton.classList.add('btn-success');
+            }
+            
+            // 2초 후 이벤트 페이지로 자동 이동
+            setTimeout(() => {
+                window.location.href = '/app/event/';
+            }, 2000);
         } else {
-            showAlert(data.error || '등록 중 오류가 발생했습니다.', 'danger');
+            showMessage(messageDiv, result.message || '참가신청에 실패했습니다.', 'error');
+            if (submitButton) {
+                submitButton.disabled = false;
+                // 로그인 이력에 따라 버튼 텍스트 업데이트
+                updateRegistrationButtonTitle();
+            }
         }
     } catch (error) {
-        showAlert('네트워크 오류가 발생했습니다. 다시 시도해주세요.', 'danger');
-    } finally {
-        showLoading(false);
+        console.error('참가신청 오류:', error);
+        showMessage(messageDiv, '네트워크 오류가 발생했습니다. 다시 시도해주세요.', 'error');
+        if (submitButton) {
+            submitButton.disabled = false;
+            // 로그인 이력에 따라 버튼 텍스트 업데이트
+            updateRegistrationButtonTitle();
+        }
     }
 }
 
-// 로딩 상태 표시
-function showLoading(show) {
-    const buttons = document.querySelectorAll('button[type="submit"]');
-    buttons.forEach(button => {
-        if (show) {
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner"></span> 처리 중...';
+// 참가신청 버튼 타이틀 업데이트
+function updateRegistrationButtonTitle() {
+    // 폼 제출 버튼 업데이트
+    const registrationForm = document.getElementById('registrationForm');
+    if (registrationForm) {
+        const submitButton = registrationForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            // 로그인 이력 확인
+            if (typeof hasLoginHistory === 'function' && hasLoginHistory()) {
+                submitButton.textContent = '참가신청/로그인';
+            } else {
+                submitButton.textContent = '참가신청';
+            }
+        }
+    }
+    
+    // Hero 섹션 버튼 업데이트
+    const heroButton = document.getElementById('heroRegisterButton');
+    if (heroButton) {
+        if (typeof hasLoginHistory === 'function' && hasLoginHistory()) {
+            heroButton.textContent = '참가신청/로그인';
         } else {
-            button.disabled = false;
-            button.innerHTML = '<i class="fas fa-user-plus me-2"></i>참가신청';
+            heroButton.textContent = '참가신청';
         }
-    });
-}
-
-// 알림 표시
-function showAlert(message, type = 'info') {
-    // 기존 알림 제거
-    const existingAlert = document.querySelector('.alert');
-    if (existingAlert) {
-        existingAlert.remove();
     }
     
-    // 새 알림 생성
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // 5초 후 자동 제거
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
+    // 네비게이션 링크 업데이트
+    const navLink = document.getElementById('navRegistrationLink');
+    if (navLink) {
+        if (typeof hasLoginHistory === 'function' && hasLoginHistory()) {
+            navLink.textContent = '참가신청/로그인';
+        } else {
+            navLink.textContent = '참가신청';
         }
-    }, 5000);
-}
-
-// 로컬 스토리지 관리
-class StorageManager {
-    static setToken(token) {
-        localStorage.setItem(AUTH_TOKEN_KEY, token);
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1); // 1개월 후
-        localStorage.setItem(TOKEN_EXPIRY_KEY, expiryDate.toISOString());
-    }
-    
-    static getToken() {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        const expiryDate = localStorage.getItem(TOKEN_EXPIRY_KEY);
-        
-        if (!token || !expiryDate) {
-            return null;
-        }
-        
-        if (new Date() > new Date(expiryDate)) {
-            this.clearToken();
-            return null;
-        }
-        
-        return token;
-    }
-    
-    static clearToken() {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(TOKEN_EXPIRY_KEY);
-    }
-    
-    static isTokenValid() {
-        return this.getToken() !== null;
     }
 }
 
-// API 호출 헬퍼
-class ApiClient {
-    static async request(url, options = {}) {
-        const token = StorageManager.getToken();
-        
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            }
-        };
-        
-        const mergedOptions = {
-            ...defaultOptions,
-            ...options,
-            headers: {
-                ...defaultOptions.headers,
-                ...options.headers
-            }
-        };
-        
-        try {
-            const response = await fetch(url, mergedOptions);
+// 참가신청 폼 이벤트 초기화
+function initRegistrationForm() {
+    const registrationForm = document.getElementById('registrationForm');
+    if (!registrationForm) {
+        console.warn('참가신청 폼을 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 기존 이벤트 리스너 제거 후 새로 추가
+    const newHandler = handleRegistrationSubmit;
+    const oldHandler = registrationForm._submitHandler;
+    
+    if (oldHandler) {
+        registrationForm.removeEventListener('submit', oldHandler);
+    }
+    
+    registrationForm.addEventListener('submit', newHandler);
+    registrationForm._submitHandler = newHandler; // 참조 저장
+    
+    console.log('참가신청 폼 이벤트 리스너 연결 완료');
+    
+    // 폼 제출 버튼이 제대로 연결되었는지 확인 및 타이틀 업데이트
+    const submitButton = registrationForm.querySelector('button[type="submit"]');
+    if (submitButton) {
+        console.log('참가신청 제출 버튼 확인됨');
+        updateRegistrationButtonTitle();
+    }
+}
+
+// 이벤트 페이지로 이동 함수 (먼저 선언하여 initEventButton에서 사용 가능하도록)
+async function goToEvent() {
+    const user = await checkAuth();
+    if (user) {
+        // 인증된 사용자는 이벤트 페이지로 이동
+        window.location.href = '/app/event/';
+    } else {
+        // 미인증 사용자는 참가신청 섹션으로 스크롤
+        const registrationSection = document.getElementById('registration');
+        if (registrationSection) {
+            registrationSection.scrollIntoView({ behavior: 'smooth' });
+            // 참가신청 폼에 포커스
+            setTimeout(() => {
+                const empnoInput = document.getElementById('empno');
+                if (empnoInput) {
+                    empnoInput.focus();
+                }
+            }, 500);
+        }
+    }
+}
+
+// 이벤트 버튼 클릭 이벤트 초기화
+function initEventButton() {
+    const eventButton = document.getElementById('eventButton');
+    if (!eventButton) {
+        console.warn('이벤트 버튼을 찾을 수 없습니다.');
+        return;
+    }
+    
+    // goToEvent 함수가 정의되어 있는지 확인
+    if (typeof goToEvent !== 'function') {
+        console.error('goToEvent 함수를 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 기존 이벤트 리스너 제거 후 새로 추가
+    const newHandler = goToEvent;
+    const oldHandler = eventButton._clickHandler;
+    
+    if (oldHandler) {
+        eventButton.removeEventListener('click', oldHandler);
+    }
+    
+    eventButton.addEventListener('click', newHandler);
+    eventButton._clickHandler = newHandler; // 참조 저장
+    
+    console.log('이벤트 버튼 클릭 리스너 연결 완료');
+}
+
+// 참가신청 섹션 표시/숨김 제어
+async function updateRegistrationSection() {
+    const registrationSection = document.getElementById('registration');
+    if (!registrationSection) return;
+    
+    const user = await checkAuth();
+    if (user) {
+        // 인증 완료 시 참가신청 섹션 숨김
+        registrationSection.style.display = 'none';
+    } else {
+        // 미인증 시 참가신청 섹션 표시
+        registrationSection.style.display = 'block';
+    }
+}
+
+// 네비게이션 메뉴 스크롤 이벤트 초기화
+function initNavigationMenu() {
+    // 네비게이션 링크에 부드러운 스크롤 추가
+    document.querySelectorAll('a.nav-link[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', async function (e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            if (targetId === '#') return;
             
-            if (response.status === 401) {
-                StorageManager.clearToken();
-                window.location.href = '/app/event/auth';
+            // 이벤트 링크는 특별 처리
+            if (targetId === '#event') {
+                // 인증 상태 확인
+                if (typeof checkAuth === 'function') {
+                    const user = await checkAuth();
+                    if (user) {
+                        // 인증된 사용자는 이벤트 페이지로 이동
+                        window.location.href = '/app/event/';
+                        return;
+                    }
+                }
+                // 미인증 사용자는 이벤트 섹션으로 스크롤
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    scrollToSectionWithOffset(targetElement);
+                    
+                    // 모바일에서 네비게이션 메뉴 자동 닫기
+                    const navbarCollapse = document.getElementById('navbarNav');
+                    if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(navbarCollapse, {
+                            toggle: false
+                        });
+                        bsCollapse.hide();
+                    }
+                }
                 return;
             }
             
-            return response;
-        } catch (error) {
-            throw new Error('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
-        }
-    }
-    
-    static async get(url) {
-        return this.request(url);
-    }
-    
-    static async post(url, data) {
-        return this.request(url, {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
-    }
-    
-    static async put(url, data) {
-        return this.request(url, {
-            method: 'PUT',
-            body: JSON.stringify(data)
-        });
-    }
-    
-    static async delete(url) {
-        return this.request(url, {
-            method: 'DELETE'
-        });
-    }
-}
-
-// 유틸리티 함수들
-const Utils = {
-    // 디바운스 함수
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    },
-    
-    // 스로틀 함수
-    throttle(func, limit) {
-        let inThrottle;
-        return function() {
-            const args = arguments;
-            const context = this;
-            if (!inThrottle) {
-                func.apply(context, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    },
-    
-    // 숫자 포맷팅
-    formatNumber(num) {
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    },
-    
-    // 날짜 포맷팅
-    formatDate(date) {
-        return new Date(date).toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    },
-    
-    // 시간 포맷팅
-    formatTime(date) {
-        return new Date(date).toLocaleTimeString('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-};
-
-// 모바일 최적화
-function setupMobileOptimization() {
-    // 터치 이벤트 최적화
-    if ('ontouchstart' in window) {
-        document.body.classList.add('touch-device');
-    }
-    
-    // 뷰포트 높이 조정 (모바일 브라우저 주소창 고려)
-    function setViewportHeight() {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-    }
-    
-    setViewportHeight();
-    window.addEventListener('resize', Utils.debounce(setViewportHeight, 100));
-}
-
-// 접근성 개선
-function setupAccessibility() {
-    // 키보드 네비게이션
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Tab') {
-            document.body.classList.add('keyboard-navigation');
-        }
-    });
-    
-    document.addEventListener('mousedown', () => {
-        document.body.classList.remove('keyboard-navigation');
-    });
-    
-    // 스킵 링크
-    const skipLink = document.createElement('a');
-    skipLink.href = '#main-content';
-    skipLink.textContent = '본문으로 건너뛰기';
-    skipLink.className = 'sr-only';
-    skipLink.style.cssText = 'position: absolute; top: -40px; left: 6px; z-index: 1000; background: #000; color: #fff; padding: 8px; text-decoration: none;';
-    
-    skipLink.addEventListener('focus', () => {
-        skipLink.classList.remove('sr-only');
-    });
-    
-    skipLink.addEventListener('blur', () => {
-        skipLink.classList.add('sr-only');
-    });
-    
-    document.body.insertBefore(skipLink, document.body.firstChild);
-}
-
-// 성능 최적화
-function setupPerformanceOptimization() {
-    // 이미지 지연 로딩
-    if ('IntersectionObserver' in window) {
-        const imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    img.classList.remove('lazy');
-                    observer.unobserve(img);
+            // 다른 링크는 헤더 높이를 고려한 스크롤 처리
+            const targetElement = document.querySelector(targetId);
+            if (targetElement) {
+                scrollToSectionWithOffset(targetElement);
+                
+                // 모바일에서 네비게이션 메뉴 자동 닫기
+                const navbarCollapse = document.getElementById('navbarNav');
+                if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+                    const bsCollapse = new bootstrap.Collapse(navbarCollapse, {
+                        toggle: false
+                    });
+                    bsCollapse.hide();
                 }
-            });
+            }
         });
-        
-        document.querySelectorAll('img[data-src]').forEach(img => {
-            imageObserver.observe(img);
-        });
-    }
-    
-    // 스크롤 성능 최적화
-    let ticking = false;
-    
-    function updateScrollEffects() {
-        // 스크롤 관련 효과들
-        ticking = false;
-    }
-    
-    window.addEventListener('scroll', () => {
-        if (!ticking) {
-            requestAnimationFrame(updateScrollEffects);
-            ticking = true;
-        }
     });
 }
 
-// 초기화 실행
-setupMobileOptimization();
-setupAccessibility();
-setupPerformanceOptimization();
+// 페이지 로드 시 초기화
+function initMainPage() {
+    // 참가신청 폼 초기화
+    initRegistrationForm();
+    
+    // 이벤트 버튼 클릭 이벤트 초기화
+    initEventButton();
+    
+    // 네비게이션 메뉴 초기화
+    initNavigationMenu();
+    
+    // 참가신청 섹션 표시/숨김 업데이트
+    updateRegistrationSection();
+    
+    // 참가신청 버튼 타이틀 업데이트 (로그인 이력 확인)
+    updateRegistrationButtonTitle();
+    
+    // 이벤트 버튼 상태 업데이트 (비동기)
+    if (typeof checkAuth === 'function') {
+        updateEventButton().catch(err => {
+            console.error('이벤트 버튼 업데이트 오류:', err);
+        });
+    }
+}
 
-// 전역 함수로 내보내기
-window.AIForum = {
-    StorageManager,
-    ApiClient,
-    Utils,
-    showAlert,
-    showLoading
-};
+// DOMContentLoaded 이벤트 처리
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMainPage);
+} else {
+    // DOM이 이미 로드된 경우 즉시 실행
+    initMainPage();
+}
 
+// 이벤트 버튼 상태 업데이트
+async function updateEventButton() {
+    const eventButton = document.getElementById('eventButton');
+    const eventMessage = document.getElementById('eventMessage');
+    
+    if (!eventButton || !eventMessage) return;
+
+    const user = await checkAuth();
+    if (user) {
+        eventMessage.textContent = '인증이 완료되었습니다. 이벤트에 참여하세요!';
+        eventButton.classList.remove('btn-secondary');
+        eventButton.classList.add('btn-primary');
+        eventButton.textContent = '이벤트 참여하기';
+    } else {
+        eventMessage.textContent = '경품 이벤트에 참여하려면 먼저 참가신청을 완료해주세요.';
+        eventButton.classList.remove('btn-primary');
+        eventButton.classList.add('btn-secondary');
+        eventButton.textContent = '참가신청 먼저 하기';
+    }
+}
+
+// 참가신청 섹션으로 스크롤
+function scrollToRegistration() {
+    const registrationSection = document.getElementById('registration');
+    if (registrationSection) {
+        scrollToSectionWithOffset(registrationSection);
+    }
+}
+
+// 헤더 높이를 고려한 스크롤 함수
+function scrollToSectionWithOffset(element) {
+    if (!element) return;
+    
+    // 헤더 높이 계산 (sticky header)
+    const header = document.querySelector('.header');
+    const headerHeight = header ? header.offsetHeight : 80;
+    const offset = headerHeight + 10; // 여유 공간 10px 추가
+    
+    // 요소의 현재 위치 계산
+    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+    const offsetPosition = elementPosition - offset;
+    
+    // 부드럽게 스크롤
+    window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+    });
+}
+
+// 전역 스코프에 노출 (다른 스크립트에서 사용 가능하도록, 안전성을 위해)
+if (typeof window !== 'undefined') {
+    window.goToEvent = goToEvent;
+    window.scrollToRegistration = scrollToRegistration;
+}
+
+// 메시지 표시
+function showMessage(container, message, type, autoHideDelay = null) {
+    if (!container) return;
+
+    container.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'error'}">${message}</div>`;
+    
+    // autoHideDelay가 지정되지 않은 경우 기본값 사용
+    const delay = autoHideDelay !== null ? autoHideDelay : (type === 'success' ? 3000 : null);
+    
+    if (delay && delay > 0) {
+        setTimeout(() => {
+            container.innerHTML = '';
+        }, delay);
+    }
+}
 
