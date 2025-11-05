@@ -205,8 +205,13 @@ function createQRScannerModal() {
     qrScannerModal = new bootstrap.Modal(modal);
     
     // 모달이 닫힐 때 스캔 중지
-    modal.addEventListener('hidden.bs.modal', () => {
-        stopQRScan();
+    modal.addEventListener('hidden.bs.modal', async () => {
+        await stopQRScan();
+    });
+    
+    // 모달이 닫히기 전에 스캔 중지 (부드러운 전환)
+    modal.addEventListener('hide.bs.modal', async () => {
+        await stopQRScan();
     });
     
     return qrScannerModal;
@@ -237,37 +242,116 @@ async function startMobileQRScan() {
     const qrReaderDiv = document.getElementById('qr-reader');
     const qrResultsDiv = document.getElementById('qr-reader-results');
     
-    if (!qrReaderDiv) return;
+    if (!qrReaderDiv) {
+        alert('QR 스캔 영역을 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 먼저 모달을 표시하여 사용자에게 카메라 접근 안내
+    modal.show();
+    qrResultsDiv.innerHTML = '<p class="text-muted">카메라 접근 권한을 요청하고 있습니다...</p>';
     
     try {
+        // 기존 스캐너가 있으면 먼저 정리
+        if (qrScanner) {
+            try {
+                await qrScanner.stop();
+                qrScanner.clear();
+            } catch (e) {
+                console.log('기존 스캐너 정리 중 오류 (무시):', e);
+            }
+            qrScanner = null;
+        }
+        
+        // qr-reader div 초기화
+        qrReaderDiv.innerHTML = '';
+        
+        // Html5Qrcode 인스턴스 생성
         qrScanner = new Html5Qrcode("qr-reader");
         
-        // 후방 카메라 우선 선택 (모바일)
-        const facingMode = { facingMode: "environment" }; // 후방 카메라
+        // 카메라 장치 목록 확인
+        let cameraId = null;
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            console.log('사용 가능한 카메라:', devices);
+            
+            // 후방 카메라 우선 선택
+            const backCamera = devices.find(device => 
+                device.label.toLowerCase().includes('back') || 
+                device.label.toLowerCase().includes('rear') ||
+                device.label.toLowerCase().includes('environment')
+            );
+            
+            if (backCamera) {
+                cameraId = backCamera.id;
+                console.log('후방 카메라 선택:', backCamera.label);
+            } else if (devices.length > 0) {
+                // 후방 카메라를 찾을 수 없으면 마지막 카메라 사용 (일반적으로 후방)
+                cameraId = devices[devices.length - 1].id;
+                console.log('사용 가능한 카메라 선택:', devices[devices.length - 1].label);
+            }
+        } catch (err) {
+            console.warn('카메라 목록 조회 실패, 기본 설정 사용:', err);
+        }
         
+        // 카메라 시작 설정
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            videoConstraints: {
+                facingMode: "environment" // 후방 카메라 우선
+            }
+        };
+        
+        // 카메라 ID가 있으면 사용, 없으면 facingMode 사용
+        const cameraConfig = cameraId ? cameraId : { facingMode: "environment" };
+        
+        qrResultsDiv.innerHTML = '<p class="text-muted">카메라를 활성화하고 있습니다...</p>';
+        
+        // 카메라 시작
         await qrScanner.start(
-            facingMode,
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0
-            },
+            cameraConfig,
+            config,
             (decodedText, decodedResult) => {
                 // QR 코드 스캔 성공
+                console.log('QR 코드 스캔 성공:', decodedText);
                 handleQRScanResult(decodedText);
                 stopQRScan();
                 modal.hide();
             },
             (errorMessage) => {
-                // 스캔 중 오류 (무시)
+                // 스캔 중 오류 (계속 시도 중이므로 무시)
+                // console.log('스캔 중 오류 (무시):', errorMessage);
             }
         );
         
-        modal.show();
-        qrResultsDiv.innerHTML = '<p class="text-muted">QR 코드를 카메라에 맞춰주세요.</p>';
+        // 카메라가 성공적으로 시작된 후 안내 메시지 업데이트
+        qrResultsDiv.innerHTML = '<p class="text-success">QR 코드를 카메라에 맞춰주세요.</p>';
+        
     } catch (error) {
         console.error('QR 스캔 시작 오류:', error);
-        qrResultsDiv.innerHTML = `<div class="alert alert-warning">카메라 접근 권한이 필요합니다. 또는 수동 입력을 사용해주세요.</div>`;
+        
+        // 에러 메시지 정리
+        let errorMessage = '카메라를 사용할 수 없습니다.';
+        if (error.name === 'NotAllowedError' || error.message.includes('permission')) {
+            errorMessage = '카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.';
+        } else if (error.name === 'NotFoundError' || error.message.includes('camera')) {
+            errorMessage = '카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        qrResultsDiv.innerHTML = `<div class="alert alert-warning">${errorMessage}</div>`;
+        
+        // 기존 스캐너 정리
+        if (qrScanner) {
+            try {
+                await qrScanner.stop().catch(() => {});
+                qrScanner.clear();
+            } catch (e) {}
+            qrScanner = null;
+        }
         
         // 폴백: 수동 입력
         setTimeout(() => {
@@ -275,21 +359,37 @@ async function startMobileQRScan() {
                 stopQRScan();
                 modal.hide();
                 manualQRInput();
+            } else {
+                modal.hide();
             }
-        }, 2000);
+        }, 3000);
     }
 }
 
 // QR 스캔 중지
-function stopQRScan() {
+async function stopQRScan() {
     if (qrScanner) {
-        qrScanner.stop().then(() => {
+        try {
+            await qrScanner.stop();
             qrScanner.clear();
             qrScanner = null;
-        }).catch((err) => {
+            
+            // qr-reader div 초기화
+            const qrReaderDiv = document.getElementById('qr-reader');
+            if (qrReaderDiv) {
+                qrReaderDiv.innerHTML = '';
+            }
+        } catch (err) {
             console.error('QR 스캔 중지 오류:', err);
+            // 에러가 발생해도 스캐너는 null로 설정
             qrScanner = null;
-        });
+            
+            // qr-reader div 초기화
+            const qrReaderDiv = document.getElementById('qr-reader');
+            if (qrReaderDiv) {
+                qrReaderDiv.innerHTML = '';
+            }
+        }
     }
 }
 
