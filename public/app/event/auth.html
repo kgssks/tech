@@ -21,7 +21,7 @@
                             <input type="text" class="form-control" id="empno" required>
                         </div>
                         <div class="mb-3">
-                            <label for="phoneLast" class="form-label">휴대번호 뒷4자리</label>
+                            <label for="phoneLast" class="form-label">휴대전화번호 뒷4자리</label>
                             <input type="text" class="form-control" id="phoneLast" maxlength="4" required>
                         </div>
                         <button type="submit" class="btn btn-primary btn-lg w-100">인증하기</button>
@@ -45,12 +45,12 @@
             const messageDiv = document.getElementById('authMessage');
 
             if (!empno || !phoneLast) {
-                messageDiv.innerHTML = '<div class="alert alert-error">직원번호와 휴대번호 뒷4자리를 입력해주세요.</div>';
+                messageDiv.innerHTML = '<div class="alert alert-error">직원번호와 휴대전화번호 뒷4자리를 입력해주세요.</div>';
                 return;
             }
 
             if (phoneLast.length !== 4) {
-                messageDiv.innerHTML = '<div class="alert alert-error">휴대번호 뒷4자리를 정확히 입력해주세요.</div>';
+                messageDiv.innerHTML = '<div class="alert alert-error">휴대전화번호 뒷4자리를 정확히 입력해주세요.</div>';
                 return;
             }
 

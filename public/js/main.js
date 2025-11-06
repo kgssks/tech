@@ -18,12 +18,12 @@ async function handleRegistrationSubmit(e) {
     const phoneLastValue = phoneLast.value.trim();
 
     if (!empnoValue || !phoneLastValue) {
-        showMessage(messageDiv, '직원번호와 휴대번호 뒷4자리를 입력해주세요.', 'error');
+        showMessage(messageDiv, '직원번호와 휴대전화번호 뒷4자리를 입력해주세요.', 'error');
         return;
     }
 
     if (phoneLastValue.length !== 4) {
-        showMessage(messageDiv, '휴대번호 뒷4자리를 정확히 입력해주세요.', 'error');
+        showMessage(messageDiv, '휴대전화번호 뒷4자리를 정확히 입력해주세요.', 'error');
         return;
     }
 
