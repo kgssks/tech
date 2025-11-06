@@ -47,7 +47,7 @@ body {
 }
 
 .brand-logo {
-    height: 2rem;
+    height: 3rem;
     width: auto;
     object-fit: contain;
 }
@@ -125,7 +125,7 @@ body {
     
     /* 모바일에서 브랜드 로고 크기 조정 */
     .brand-logo {
-        height: 1.5rem;
+        height: 2.2rem !important;
     }
     
     .navbar-brand {
@@ -135,7 +135,10 @@ body {
 
 /* Hero Section - KB CI 그라데이션 적용 */
 .hero-section {
-    background: linear-gradient(180deg, var(--kb-purple) 0%, var(--kb-magenta) 100%);
+    background-image: url('/asset/tech-forum-bg.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     color: white;
     padding: 4rem 1rem;
     text-align: center;
@@ -154,8 +157,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(180deg, var(--kb-purple) 0%, var(--kb-magenta) 100%);
-    opacity: 0.95;
+    background: rgba(0, 0, 0, 0.2);
     z-index: 1;
 }
 
@@ -540,6 +542,19 @@ section {
     object-fit: cover;
 }
 
+/* 스타런 썸네일 특별 스타일 - 기본 스타일만 유지, 배경은 인라인 스타일로 처리 */
+.archive-thumbnail-lxp {
+    position: relative;
+}
+
+.archive-thumbnail-lxp img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
 .archive-placeholder {
     position: absolute;
     top: 0;
@@ -651,6 +666,11 @@ section {
 
     .navbar-brand {
         font-size: 1.2rem;
+    }
+    
+    /* 모바일용 배경 이미지 */
+    .hero-section {
+        background-image: url('/asset/tech-forum-bg-mob.jpeg');
     }
 }
 
