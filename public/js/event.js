@@ -2,12 +2,125 @@
 let ws = null;
 let userId = null;
 
+// GPS 정보 수집 함수
+function getGPSLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('GPS 기능을 지원하지 않는 기기입니다.'));
+            return;
+        }
+
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                });
+            },
+            (error) => {
+                let errorMessage = 'GPS 정보를 가져올 수 없습니다.';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = 'GPS 사용 권한이 거부되었습니다.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = 'GPS 위치 정보를 사용할 수 없습니다.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = 'GPS 정보 요청 시간이 초과되었습니다.';
+                        break;
+                }
+                reject(new Error(errorMessage));
+            },
+            options
+        );
+    });
+}
+
+// GPS 정보 요청 및 권한 확인 모달
+async function requestGPSWithPermission() {
+    return new Promise((resolve) => {
+        if (typeof showConfirmModal === 'function') {
+            showConfirmModal(
+                '위치 정보 필요',
+                '부스 참여 확인을 위해 위치 정보(GPS)가 필요합니다.\n\n위치 정보 사용 권한을 허용해주세요.',
+                async () => {
+                    try {
+                        const location = await getGPSLocation();
+                        resolve(location);
+                    } catch (error) {
+                        // 재시도 요청
+                        if (typeof showConfirmModal === 'function') {
+                            showConfirmModal(
+                                '위치 정보 필요',
+                                `${error.message}\n\n부스 참여를 위해 위치 정보가 필수입니다. 다시 시도하시겠습니까?`,
+                                async () => {
+                                    try {
+                                        const location = await getGPSLocation();
+                                        resolve(location);
+                                    } catch (retryError) {
+                                        if (typeof showModal === 'function') {
+                                            showModal('위치 정보 오류', '위치 정보를 가져올 수 없어 부스 참여가 제한될 수 있습니다.\n\n설정에서 위치 정보 권한을 허용해주세요.');
+                                        }
+                                        resolve(null);
+                                    }
+                                },
+                                () => {
+                                    if (typeof showModal === 'function') {
+                                        showModal('알림', '위치 정보 없이 부스 참여가 진행됩니다.');
+                                    }
+                                    resolve(null);
+                                }
+                            );
+                        } else {
+                            resolve(null);
+                        }
+                    }
+                },
+                () => {
+                    if (typeof showModal === 'function') {
+                        showModal('알림', '위치 정보 없이 부스 참여가 진행됩니다.');
+                    }
+                    resolve(null);
+                }
+            );
+        } else {
+            // showConfirmModal이 없는 경우 직접 시도
+            getGPSLocation().then(resolve).catch(() => resolve(null));
+        }
+    });
+}
+
 // QR 스캔 제출 (전역 함수로 노출 - 먼저 선언)
 window.submitQRScan = async function(encryptedData) {
     const token = getToken();
     if (!token) return;
 
+    // GPS 정보 수집
+    let location = null;
     try {
+        location = await requestGPSWithPermission();
+    } catch (error) {
+        console.error('GPS 정보 수집 오류:', error);
+    }
+
+    try {
+        const requestBody = {
+            encryptedData
+        };
+        
+        // GPS 정보가 있으면 포함
+        if (location && location.latitude && location.longitude) {
+            requestBody.latitude = location.latitude;
+            requestBody.longitude = location.longitude;
+        }
+
         const response = await fetch(`/api/booth/scan`, {
             method: 'POST',
             headers: {
@@ -15,7 +128,7 @@ window.submitQRScan = async function(encryptedData) {
                 'Authorization': `Bearer ${token}`,
                 'kb-auth': `Bearer ${token}`
             },
-            body: JSON.stringify({ encryptedData })
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();

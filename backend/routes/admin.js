@@ -125,8 +125,8 @@ router.get('/verify', (req, res) => {
 router.get('/dashboard', (req, res) => {
   const db = getDB();
 
-  // 전체 참가자 수
-  db.get('SELECT COUNT(*) as total FROM users', (err, userCount) => {
+  // 전체 참가자 수 (deleted 제외)
+  db.get('SELECT COUNT(*) as total FROM users WHERE (deleted = 0 OR deleted IS NULL)', (err, userCount) => {
     if (err) {
       return res.status(500).json({
         success: false,
@@ -260,10 +260,11 @@ router.get('/users', (req, res) => {
   const db = getDB();
 
   db.all(`SELECT u.empno, u.empname, u.deptname, u.posname, u.created_at,
-                 COUNT(bp.id) as booth_count,
+                 COUNT(CASE WHEN bp.deleted = 0 OR bp.deleted IS NULL THEN bp.id END) as booth_count,
                  (SELECT COUNT(*) FROM prize_claims WHERE user_id = u.id) as prize_claimed
           FROM users u
-          LEFT JOIN booth_participations bp ON u.id = bp.user_id
+          LEFT JOIN booth_participations bp ON u.id = bp.user_id AND (bp.deleted = 0 OR bp.deleted IS NULL)
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
           GROUP BY u.id
           ORDER BY u.created_at DESC`,
     (err, users) => {
@@ -286,9 +287,11 @@ router.get('/users', (req, res) => {
 router.get('/booth-participations', (req, res) => {
   const db = getDB();
 
-  db.all(`SELECT u.empname, u.deptname, u.posname, bp.booth_code, bp.scanned_at
+  db.all(`SELECT u.id as user_id, u.empname, u.deptname, u.posname, bp.id as participation_id, bp.booth_code, bp.scanned_at, bp.latitude, bp.longitude, bp.deleted
           FROM booth_participations bp
           JOIN users u ON bp.user_id = u.id
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
+            AND (bp.deleted = 0 OR bp.deleted IS NULL)
           ORDER BY bp.scanned_at DESC`,
     (err, participations) => {
       if (err) {
@@ -415,7 +418,7 @@ router.post('/prize-claim', (req, res) => {
 router.get('/prize-eligible', (req, res) => {
   const db = getDB();
 
-  // 먼저 부스 3개 이상 참여한 사용자 조회
+  // 먼저 부스 3개 이상 참여한 사용자 조회 (deleted = 0인 것만)
   db.all(`SELECT 
             u.id,
             u.empno,
@@ -425,6 +428,8 @@ router.get('/prize-eligible', (req, res) => {
             COUNT(bp.id) as booth_count
           FROM users u
           INNER JOIN booth_participations bp ON u.id = bp.user_id
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
+            AND (bp.deleted = 0 OR bp.deleted IS NULL)
           GROUP BY u.id
           HAVING COUNT(bp.id) >= 3
           ORDER BY booth_count DESC, u.empname ASC`,
@@ -461,6 +466,7 @@ router.get('/prize-eligible', (req, res) => {
                 GROUP_CONCAT(booth_code, ', ') as booth_codes
               FROM booth_participations
               WHERE user_id IN (${placeholders})
+                AND (deleted = 0 OR deleted IS NULL)
               GROUP BY user_id`,
         userIds,
         (err, boothCodes) => {
@@ -565,6 +571,35 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
   const positions = ['주임', '대리', '과장', '차장', '부장', '선임', '수석'];
   
   try {
+    // 기존 테스트 사용자 중 최대 번호 확인 (삭제된 사용자 포함)
+    const maxTestUserResult = await new Promise((resolve, reject) => {
+      db.all(`SELECT empno FROM users WHERE empno LIKE 'TEST%'`, (err, results) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        // empno에서 숫자 부분 추출하여 최대값 찾기
+        let maxNumber = 0;
+        if (results && results.length > 0) {
+          results.forEach(user => {
+            // TEST001, TEST002 형식에서 숫자 부분 추출
+            const match = user.empno.match(/TEST(\d+)/);
+            if (match && match[1]) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) {
+                maxNumber = num;
+              }
+            }
+          });
+        }
+        resolve({ maxNumber });
+      });
+    });
+    
+    // 시작 번호는 최대 번호 + 1
+    const startTestNumber = (maxTestUserResult.maxNumber || 0) + 1;
+    
     // 기존 최대 추첨번호 확인
     const maxLotteryResult = await new Promise((resolve, reject) => {
       db.get('SELECT MAX(lottery_number) as maxLottery FROM lottery_numbers', (err, result) => {
@@ -585,13 +620,14 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
     // 150명의 가상 사용자 생성 (Promise 배열로 변환)
     const createPromises = [];
     
-    for (let i = 1; i <= 150; i++) {
-      const empno = `TEST${String(i).padStart(3, '0')}`;
-      const empname = `테스트사용자${i}`;
+    for (let i = 0; i < 150; i++) {
+      const testNumber = startTestNumber + i;
+      const empno = `TEST${String(testNumber).padStart(3, '0')}`;
+      const empname = `테스트사용자${testNumber}`;
       const deptname = departments[i % departments.length];
       const posname = positions[i % positions.length];
       const tokenSecret = crypto.randomBytes(32).toString('hex');
-      const lotteryNumber = startLotteryNumber + i - 1;
+      const lotteryNumber = startLotteryNumber + i;
       
       // 사용자 생성 Promise
       const createUserPromise = new Promise((resolve) => {
@@ -637,6 +673,10 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
       created: createdCount,
       errors: errorCount,
       errorDetails: errors.length > 0 ? errors : undefined,
+      testUserRange: {
+        start: `TEST${String(startTestNumber).padStart(3, '0')}`,
+        end: `TEST${String(startTestNumber + createdCount - 1).padStart(3, '0')}`
+      },
       lotteryNumberRange: {
         start: startLotteryNumber,
         end: startLotteryNumber + createdCount - 1
@@ -650,6 +690,158 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
       message: `데이터베이스 오류가 발생했습니다: ${error.message}`
     });
   }
+});
+
+// 부스 참여 삭제 (사용안함 처리)
+router.post('/booth-participation/delete', (req, res) => {
+  const { participationId } = req.body;
+  const db = getDB();
+
+  if (!participationId) {
+    return res.status(400).json({
+      success: false,
+      message: '부스 참여 ID가 필요합니다.'
+    });
+  }
+
+  // 부스 참여 정보 조회
+  db.get(`SELECT bp.user_id, bp.booth_code, u.empname
+          FROM booth_participations bp
+          JOIN users u ON bp.user_id = u.id
+          WHERE bp.id = ? AND (bp.deleted = 0 OR bp.deleted IS NULL)`,
+    [participationId],
+    (err, participation) => {
+      if (err || !participation) {
+        return res.status(404).json({
+          success: false,
+          message: '부스 참여 정보를 찾을 수 없습니다.'
+        });
+      }
+
+      // 부스 참여를 사용안함 처리
+      db.run(`UPDATE booth_participations SET deleted = 1 WHERE id = ?`,
+        [participationId],
+        function(updateErr) {
+          if (updateErr) {
+            return res.status(500).json({
+              success: false,
+              message: '부스 참여 삭제 중 오류가 발생했습니다.'
+            });
+          }
+
+          // 삭제 후 해당 사용자의 유효한 부스 참여 수 확인
+          db.get(`SELECT COUNT(*) as count
+                  FROM booth_participations
+                  WHERE user_id = ? AND (deleted = 0 OR deleted IS NULL)`,
+            [participation.user_id],
+            (countErr, countResult) => {
+              if (!countErr && countResult && countResult.count < 3) {
+                // 부스 참여가 3개 미만이 되면 자격 상실 메시지 포함
+                res.json({
+                  success: true,
+                  message: '부스 참여가 삭제되었습니다.',
+                  qualificationLost: true,
+                  currentCount: countResult.count,
+                  userName: participation.empname
+                });
+              } else {
+                res.json({
+                  success: true,
+                  message: '부스 참여가 삭제되었습니다.',
+                  qualificationLost: false
+                });
+              }
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// 모바일상품권 추첨대상 삭제 (해당 사용자의 모든 부스 참여 삭제)
+router.post('/prize-eligible/delete', (req, res) => {
+  const { userId } = req.body;
+  const db = getDB();
+
+  if (!userId) {
+    return res.status(400).json({
+      success: false,
+      message: '사용자 ID가 필요합니다.'
+    });
+  }
+
+  // 사용자 정보 조회
+  db.get(`SELECT empname FROM users WHERE id = ?`, [userId], (err, user) => {
+    if (err || !user) {
+      return res.status(404).json({
+        success: false,
+        message: '사용자 정보를 찾을 수 없습니다.'
+      });
+    }
+
+    // 해당 사용자의 모든 부스 참여를 사용안함 처리
+    db.run(`UPDATE booth_participations SET deleted = 1 WHERE user_id = ? AND (deleted = 0 OR deleted IS NULL)`,
+      [userId],
+      function(updateErr) {
+        if (updateErr) {
+          return res.status(500).json({
+            success: false,
+            message: '부스 참여 삭제 중 오류가 발생했습니다.'
+          });
+        }
+
+        res.json({
+          success: true,
+          message: `${user.empname}님의 모든 부스 참여가 삭제되었습니다.`,
+          deletedCount: this.changes
+        });
+      }
+    );
+  });
+});
+
+// 테스트 사용자 삭제 (사용안함 처리)
+router.post('/delete-test-users', verifyAdminToken, (req, res) => {
+  const db = getDB();
+
+  // empno가 'TEST'로 시작하는 모든 사용자를 사용안함 처리
+  db.run(`UPDATE users SET deleted = 1 WHERE empno LIKE 'TEST%' AND (deleted = 0 OR deleted IS NULL)`,
+    [],
+    function(updateErr) {
+      if (updateErr) {
+        console.error('테스트 사용자 삭제 오류:', updateErr);
+        return res.status(500).json({
+          success: false,
+          message: '테스트 사용자 삭제 중 오류가 발생했습니다.'
+        });
+      }
+
+      const deletedCount = this.changes;
+
+      // 삭제된 테스트 사용자들의 부스 참여도 사용안함 처리
+      db.run(`UPDATE booth_participations 
+              SET deleted = 1 
+              WHERE user_id IN (
+                SELECT id FROM users WHERE empno LIKE 'TEST%' AND deleted = 1
+              ) AND (deleted = 0 OR deleted IS NULL)`,
+        [],
+        function(boothErr) {
+          if (boothErr) {
+            console.error('테스트 사용자 부스 참여 삭제 오류:', boothErr);
+            // 부스 참여 삭제 실패해도 사용자 삭제는 성공했으므로 경고만 반환
+          }
+
+          res.json({
+            success: true,
+            message: `테스트 사용자 ${deletedCount}명이 삭제(사용안함) 처리되었습니다.`,
+            deletedCount: deletedCount,
+            boothParticipationsDeleted: boothErr ? 0 : this.changes
+          });
+        }
+      );
+    }
+  );
 });
 
 module.exports = router;

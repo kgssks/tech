@@ -175,6 +175,7 @@ async function proceedGenerateTestData() {
                     <h5>테스트 데이터 생성 완료</h5>
                     <p>생성된 사용자: ${data.created}명</p>
                     <p>오류 발생: ${data.errors}건</p>
+                    ${data.testUserRange ? `<p>테스트 사용자 범위: ${data.testUserRange.start} ~ ${data.testUserRange.end}</p>` : ''}
                     <p>추첨번호 범위: ${data.lotteryNumberRange.start} ~ ${data.lotteryNumberRange.end}</p>
                     ${data.errorDetails && data.errorDetails.length > 0 ? `
                         <details class="mt-2">
@@ -196,6 +197,89 @@ async function proceedGenerateTestData() {
     } finally {
         btn.disabled = false;
         btn.textContent = '테스트 사용자 150명 생성';
+    }
+}
+
+// 테스트 사용자 삭제 함수
+async function deleteTestUsers() {
+    const btn = document.getElementById('deleteTestDataBtn');
+    const resultDiv = document.getElementById('testDataResult');
+    
+    if (!btn || !resultDiv) return;
+    
+    // 확인
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '테스트 사용자 삭제',
+            '모든 테스트 사용자(TEST001~TEST150)를 삭제(사용안함) 처리하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 해당 사용자들의 모든 부스 참여 기록도 함께 삭제됩니다.',
+            async () => {
+                await proceedDeleteTestUsers();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('모든 테스트 사용자(TEST001~TEST150)를 삭제(사용안함) 처리하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 해당 사용자들의 모든 부스 참여 기록도 함께 삭제됩니다.')) {
+        return;
+    }
+    
+    await proceedDeleteTestUsers();
+}
+
+// 테스트 사용자 삭제 실행 함수
+async function proceedDeleteTestUsers() {
+    const btn = document.getElementById('deleteTestDataBtn');
+    const resultDiv = document.getElementById('testDataResult');
+    
+    btn.disabled = true;
+    btn.textContent = '삭제 중...';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-info">테스트 사용자 삭제 중입니다. 잠시만 기다려주세요...</div>';
+    
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+        
+        const response = await fetch('/api/admin/delete-test-users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h5>테스트 사용자 삭제 완료</h5>
+                    <p>삭제된 사용자: ${data.deletedCount}명</p>
+                    <p>삭제된 부스 참여 기록: ${data.boothParticipationsDeleted || 0}건</p>
+                    <p class="text-muted mt-2">모든 테스트 사용자가 사용안함 처리되었습니다.</p>
+                </div>
+            `;
+            
+            // 대시보드 새로고침
+            await loadDashboard();
+            loadBoothParticipations();
+            loadPrizeEligible();
+            loadPrizeClaims();
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">오류: ${data.message || '테스트 사용자 삭제에 실패했습니다.'}</div>`;
+        }
+    } catch (error) {
+        console.error('테스트 사용자 삭제 오류:', error);
+        resultDiv.innerHTML = `<div class="alert alert-danger">오류: ${error.message || '네트워크 오류가 발생했습니다.'}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '테스트사용자 삭제';
     }
 }
 
@@ -1880,15 +1964,35 @@ async function loadBoothParticipations() {
 
         if (data.success) {
             const tbody = document.getElementById('boothsTableBody');
-            tbody.innerHTML = data.participations.map(p => `
-                <tr>
-                    <td>${p.empname}</td>
-                    <td>${p.deptname || '-'}</td>
-                    <td>${p.posname || '-'}</td>
-                    <td>${p.booth_code}</td>
-                    <td>${new Date(p.scanned_at).toLocaleString()}</td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = data.participations.map(p => {
+                let locationText = '-';
+                let locationLink = '';
+                
+                if (p.latitude && p.longitude) {
+                    const lat = parseFloat(p.latitude).toFixed(6);
+                    const lng = parseFloat(p.longitude).toFixed(6);
+                    locationText = `${lat}, ${lng}`;
+                    // Google Maps 링크 생성
+                    locationLink = `<a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-sm btn-outline-primary" title="지도에서 보기">지도</a>`;
+                }
+                
+                return `
+                    <tr>
+                        <td>${p.empname}</td>
+                        <td>${p.deptname || '-'}</td>
+                        <td>${p.posname || '-'}</td>
+                        <td>${p.booth_code}</td>
+                        <td>${new Date(p.scanned_at).toLocaleString()}</td>
+                        <td>${locationText}</td>
+                        <td>${locationLink}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBoothParticipation(${p.participation_id}, '${p.empname}', '${p.booth_code}')">
+                                삭제
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
     } catch (error) {
         console.error('부스 참여 목록 로드 오류:', error);
@@ -1914,16 +2018,21 @@ async function loadPrizeEligible() {
                             <td>${user.posname || '-'}</td>
                             <td><strong>${user.booth_count || 0}</strong></td>
                             <td>${boothCodes}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deletePrizeEligible(${user.id}, '${(user.empname || '').replace(/'/g, "\\'")}')">
+                                    삭제
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">추첨 자격자가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">추첨 자격자가 없습니다.</td></tr>';
             }
         }
     } catch (error) {
         const tbody = document.getElementById('prizeEligibleTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
     }
 }
 
@@ -1947,16 +2056,182 @@ async function loadPrizeClaims() {
                             <td>${user.posname || '-'}</td>
                             <td><strong>${user.booth_count || 0}</strong></td>
                             <td>${boothCodes}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deletePrizeEligible(${user.id}, '${(user.empname || '').replace(/'/g, "\\'")}')">
+                                    삭제
+                                </button>
+                            </td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center">추첨 자격자가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">추첨 자격자가 없습니다.</td></tr>';
             }
         }
     } catch (error) {
         const tbody = document.getElementById('prizesTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+    }
+}
+
+// 부스 참여 삭제 함수
+async function deleteBoothParticipation(participationId, empname, boothCode) {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '부스 참여 삭제',
+            `"${empname}"님의 "${boothCode}" 부스 참여를 삭제(사용안함) 처리하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`,
+            async () => {
+                try {
+                    const response = await fetch('/api/admin/booth-participation/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ participationId })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        let message = data.message;
+                        if (data.qualificationLost) {
+                            message += `\n\n⚠️ "${data.userName}"님의 부스 참여가 ${data.currentCount}개로 줄어 모바일상품권 추첨 자격이 상실되었습니다.`;
+                        }
+
+                        if (typeof showModal === 'function') {
+                            showModal('삭제 완료', message, () => {
+                                loadBoothParticipations();
+                                loadPrizeEligible();
+                                loadPrizeClaims();
+                            });
+                        } else {
+                            alert(message);
+                            loadBoothParticipations();
+                            loadPrizeEligible();
+                            loadPrizeClaims();
+                        }
+                    } else {
+                        if (typeof showModal === 'function') {
+                            showModal('오류', data.message || '부스 참여 삭제 중 오류가 발생했습니다.');
+                        } else {
+                            alert(data.message || '부스 참여 삭제 중 오류가 발생했습니다.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('부스 참여 삭제 오류:', error);
+                    if (typeof showModal === 'function') {
+                        showModal('오류', '네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+                    } else {
+                        alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+                    }
+                }
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+    } else if (confirm(`"${empname}"님의 "${boothCode}" 부스 참여를 삭제(사용안함) 처리하시겠습니까?`)) {
+        try {
+            const response = await fetch('/api/admin/booth-participation/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ participationId })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                loadBoothParticipations();
+                loadPrizeEligible();
+                loadPrizeClaims();
+            } else {
+                alert(data.message || '부스 참여 삭제 중 오류가 발생했습니다.');
+            }
+        } catch (error) {
+            console.error('부스 참여 삭제 오류:', error);
+            alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+        }
+    }
+}
+
+// 모바일상품권 추첨대상 삭제 함수
+async function deletePrizeEligible(userId, empname) {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '추첨대상 삭제',
+            `"${empname}"님을 모바일상품권 추첨대상에서 삭제하시겠습니까?\n\n이 작업은 해당 사용자의 모든 부스 참여 기록을 삭제(사용안함) 처리하며, 되돌릴 수 없습니다.`,
+            async () => {
+                try {
+                    const response = await fetch('/api/admin/prize-eligible/delete', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ userId })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (typeof showModal === 'function') {
+                            showModal('삭제 완료', data.message, () => {
+                                loadBoothParticipations();
+                                loadPrizeEligible();
+                                loadPrizeClaims();
+                            });
+                        } else {
+                            alert(data.message);
+                            loadBoothParticipations();
+                            loadPrizeEligible();
+                            loadPrizeClaims();
+                        }
+                    } else {
+                        if (typeof showModal === 'function') {
+                            showModal('오류', data.message || '추첨대상 삭제 중 오류가 발생했습니다.');
+                        } else {
+                            alert(data.message || '추첨대상 삭제 중 오류가 발생했습니다.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('추첨대상 삭제 오류:', error);
+                    if (typeof showModal === 'function') {
+                        showModal('오류', '네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+                    } else {
+                        alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+                    }
+                }
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+    } else if (confirm(`"${empname}"님을 모바일상품권 추첨대상에서 삭제하시겠습니까?\n\n이 작업은 해당 사용자의 모든 부스 참여 기록을 삭제(사용안함) 처리합니다.`)) {
+        try {
+            const response = await fetch('/api/admin/prize-eligible/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userId })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message);
+                loadBoothParticipations();
+                loadPrizeEligible();
+                loadPrizeClaims();
+            } else {
+                alert(data.message || '추첨대상 삭제 중 오류가 발생했습니다.');
+            }
+        } catch (error) {
+            console.error('추첨대상 삭제 오류:', error);
+            alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+        }
     }
 }
 

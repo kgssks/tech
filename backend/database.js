@@ -31,8 +31,14 @@ function createTables() {
         phone_last TEXT,
         token_secret TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        deleted INTEGER DEFAULT 0
       )`);
+      
+      // 사용안함 플래그 추가 (마이그레이션)
+      db.run(`ALTER TABLE users ADD COLUMN deleted INTEGER DEFAULT 0`, (err) => {
+        // 이미 존재하면 무시
+      });
 
       // 부스 참여 테이블
       db.run(`CREATE TABLE IF NOT EXISTS booth_participations (
@@ -41,8 +47,23 @@ function createTables() {
         booth_code TEXT NOT NULL,
         scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         qr_data TEXT,
+        latitude REAL,
+        longitude REAL,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )`);
+      
+      // GPS 정보 컬럼 추가 (마이그레이션)
+      db.run(`ALTER TABLE booth_participations ADD COLUMN latitude REAL`, (err) => {
+        // 이미 존재하면 무시
+      });
+      db.run(`ALTER TABLE booth_participations ADD COLUMN longitude REAL`, (err) => {
+        // 이미 존재하면 무시
+      });
+      
+      // 사용안함 플래그 추가 (마이그레이션)
+      db.run(`ALTER TABLE booth_participations ADD COLUMN deleted INTEGER DEFAULT 0`, (err) => {
+        // 이미 존재하면 무시
+      });
 
       // 경품 지급 테이블
       db.run(`CREATE TABLE IF NOT EXISTS prize_claims (

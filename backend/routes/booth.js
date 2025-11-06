@@ -66,7 +66,7 @@ router.post('/generate-qr', async (req, res) => {
 // 부스 스캔 처리
 router.post('/scan', authenticate, (req, res) => {
   try {
-    const { encryptedData } = req.body;
+    const { encryptedData, latitude, longitude } = req.body;
 
     if (!encryptedData) {
       return res.status(400).json({
@@ -116,10 +116,10 @@ router.post('/scan', authenticate, (req, res) => {
           });
         }
 
-        // 참여 기록 저장
-        db.run(`INSERT INTO booth_participations (user_id, booth_code, qr_data)
-                VALUES (?, ?, ?)`,
-          [user.id, boothCode, encryptedData],
+        // 참여 기록 저장 (GPS 정보 포함)
+        db.run(`INSERT INTO booth_participations (user_id, booth_code, qr_data, latitude, longitude)
+                VALUES (?, ?, ?, ?, ?)`,
+          [user.id, boothCode, encryptedData, latitude || null, longitude || null],
           function(err) {
             if (err) {
               return res.status(500).json({
