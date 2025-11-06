@@ -143,9 +143,10 @@ router.get('/dashboard', (req, res) => {
         });
       }
 
-      // 부스 참여 현황
+      // 부스 참여 현황 (deleted 제외)
       db.all(`SELECT booth_code, COUNT(*) as count 
               FROM booth_participations 
+              WHERE (deleted = 0 OR deleted IS NULL)
               GROUP BY booth_code`,
         (err, boothStats) => {
           if (err) {
@@ -155,10 +156,12 @@ router.get('/dashboard', (req, res) => {
             });
           }
 
-          // 모바일상품권 추첨 자격자 수 (부스 3개 이상 참여)
+          // 모바일상품권 추첨 자격자 수 (부스 3개 이상 참여, deleted 제외)
           db.all(`SELECT u.id, COUNT(bp.id) as booth_count
                   FROM users u
                   INNER JOIN booth_participations bp ON u.id = bp.user_id
+                  WHERE (u.deleted = 0 OR u.deleted IS NULL)
+                    AND (bp.deleted = 0 OR bp.deleted IS NULL)
                   GROUP BY u.id
                   HAVING COUNT(bp.id) >= 3`,
             (err, eligibleUsers) => {

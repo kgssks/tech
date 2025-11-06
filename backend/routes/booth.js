@@ -97,9 +97,9 @@ router.post('/scan', authenticate, (req, res) => {
         });
       }
 
-      // 이미 참여한 부스인지 확인
+      // 이미 참여한 부스인지 확인 (deleted되지 않은 것만)
       db.get(`SELECT id FROM booth_participations 
-              WHERE user_id = ? AND booth_code = ?`,
+              WHERE user_id = ? AND booth_code = ? AND (deleted = 0 OR deleted IS NULL)`,
         [user.id, boothCode], (err, existing) => {
         if (err) {
           return res.status(500).json({
@@ -159,7 +159,8 @@ router.get('/participation', authenticate, (req, res) => {
     }
 
     db.all(`SELECT booth_code, scanned_at FROM booth_participations
-            WHERE user_id = ? ORDER BY scanned_at`,
+            WHERE user_id = ? AND (deleted = 0 OR deleted IS NULL)
+            ORDER BY scanned_at`,
       [user.id], (err, participations) => {
         if (err) {
           return res.status(500).json({
@@ -168,7 +169,7 @@ router.get('/participation', authenticate, (req, res) => {
           });
         }
 
-        const boothCodes = participations.map(p => p.booth_code);
+        const boothCodes = participations ? participations.map(p => p.booth_code) : [];
         const eligible = boothCodes.length >= 3;
 
         res.json({

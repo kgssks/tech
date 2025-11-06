@@ -146,7 +146,8 @@ window.submitQRScan = async function(encryptedData) {
                 } else {
                     alert('부스 참여가 완료되었습니다!');
                 }
-                loadParticipationStatus();
+                // 참여 현황 새로고침 (UI 업데이트)
+                await loadParticipationStatus();
             }
         } else {
             if (typeof showModal === 'function') {
@@ -239,6 +240,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadParticipationStatus();
     await loadLotteryNumber();
     displayParticipantInfo();
+    
+    // 페이지가 다시 보일 때 참여 현황 갱신 (관리자가 삭제한 경우 반영)
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden) {
+            // 페이지가 보일 때 참여 현황 갱신
+            await loadParticipationStatus();
+        }
+    });
+    
+    // 윈도우 포커스 시에도 참여 현황 갱신
+    window.addEventListener('focus', async () => {
+        await loadParticipationStatus();
+    });
 });
 
 // 이벤트 페이지 참가자 정보 표시 (본문 섹션에 표시)
@@ -330,11 +344,22 @@ async function loadParticipationStatus() {
 
         const data = await response.json();
         if (data.success) {
-            updateStamps(data.participations);
-            document.getElementById('stampCountValue').textContent = data.count;
+            // 참여 현황에 따라 UI 업데이트
+            updateStamps(data.participations || []);
+            
+            const stampCountElement = document.getElementById('stampCountValue');
+            if (stampCountElement) {
+                stampCountElement.textContent = data.count || 0;
+            }
 
-            if (data.eligible) {
-                document.getElementById('prizeQRSection').style.display = 'block';
+            // 모바일상품추첨권 섹션 표시/숨김 처리
+            const prizeQRSection = document.getElementById('prizeQRSection');
+            if (prizeQRSection) {
+                if (data.eligible && data.count >= 3) {
+                    prizeQRSection.style.display = 'block';
+                } else {
+                    prizeQRSection.style.display = 'none';
+                }
             }
         }
     } catch (error) {
@@ -345,12 +370,16 @@ async function loadParticipationStatus() {
 // 스탬프 업데이트
 function updateStamps(participations) {
     const stamps = ['stamp1', 'stamp2', 'stamp3'];
+    const participationCount = participations ? participations.length : 0;
+    
     stamps.forEach((stampId, index) => {
         const stampElement = document.getElementById(stampId);
-        if (index < participations.length) {
-            stampElement.classList.add('active');
-        } else {
-            stampElement.classList.remove('active');
+        if (stampElement) {
+            if (index < participationCount) {
+                stampElement.classList.add('active');
+            } else {
+                stampElement.classList.remove('active');
+            }
         }
     });
 }
