@@ -2413,5 +2413,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('dashboardSection').style.display = 'block';
         loadDashboard();
     }
+    
+    // 탭 클릭 이벤트 리스너 추가
+    const dataTabs = document.getElementById('dataTabs');
+    if (dataTabs) {
+        // Bootstrap 탭 이벤트 리스너
+        dataTabs.addEventListener('shown.bs.tab', async (event) => {
+            const targetTab = event.target.getAttribute('href'); // #users, #booths, #prizes, #surveys, #logs
+            
+            // 각 탭에 해당하는 데이터 로드 함수 호출
+            switch(targetTab) {
+                case '#users':
+                    await loadUsers();
+                    break;
+                case '#booths':
+                    await loadBoothParticipations();
+                    break;
+                case '#prizes':
+                    await loadPrizeClaims();
+                    break;
+                case '#surveys':
+                    await loadSurveys();
+                    break;
+                case '#logs':
+                    // loadLogs()는 이미 onclick으로 연결되어 있지만, 탭 클릭 시에도 호출
+                    await loadLogs();
+                    break;
+            }
+        });
+    }
 });
 
