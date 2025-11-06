@@ -43,6 +43,12 @@
                         <li class="nav-item">
                             <a class="nav-link" href="#event">이벤트</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#archive">지난 포럼 다시보기</a>
+                        </li>
+                        <li class="nav-item" id="adminNavItem" style="display: none;">
+                            <a class="nav-link" href="/app/admin/" style="color: var(--kb-primary); font-weight: 600;">관리자</a>
+                        </li>
                     </ul>
                     <div class="user-info" id="userInfo" style="display: none;">
                         <span id="userName"></span>
@@ -63,7 +69,14 @@
             <h2 style="font-family: 'KBFGDisplay', sans-serif; font-size: 1.8rem; margin: 1.5rem 0; color: white;">KB금융 AI 기술 테크포럼</h2>
             <p class="hero-subtitle">2025.11.28 (금) 13:00 ~ 17:30</p>
             <p class="hero-location">여의도 신관 B1층 다목적홀</p>
-            <button class="btn btn-primary btn-lg hero-register-btn" id="heroRegisterButton" onclick="scrollToRegistration()">참가신청</button>
+            <div style="text-align: center;">
+                <button class="btn btn-primary btn-lg hero-register-btn" id="heroRegisterButton" onclick="scrollToRegistration()">참가신청</button>
+                <div id="heroWelcomeMessage" style="display: none; margin-top: 1.5rem; text-align: center;">
+                    <p style="font-size: 1.5rem; font-weight: 600; color: white; margin: 0;">
+                        <span id="heroWelcomeName"></span>님 환영합니다
+                    </p>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -302,6 +315,54 @@
         </div>
     </section>
 
+    <!-- 지난 포럼 다시보기 섹션 -->
+    <section class="archive-section" id="archive">
+        <div class="container">
+            <h2 class="section-title">지난 포럼 다시보기</h2>
+            <div class="archive-content">
+                <div class="row g-4">
+                    <!-- 테크포럼2024 스케치 -->
+                    <div class="col-md-6">
+                        <div class="archive-card">
+                            <a href="https://www.youtube.com/watch?v=B6vDCZQuR8A" target="_blank" rel="noopener noreferrer" class="archive-link">
+                                <div class="archive-thumbnail">
+                                    <img src="https://img.youtube.com/vi/B6vDCZQuR8A/maxresdefault.jpg" alt="테크포럼2024 스케치" class="img-fluid">
+                                    <div class="play-overlay">
+                                        <svg width="64" height="64" viewBox="0 0 24 24" fill="white">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="archive-info">
+                                    <h4>테크포럼2024 스케치</h4>
+                                    <p class="text-muted">YouTube에서 보기</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- 스타런 전체섹션 다시보기 -->
+                    <div class="col-md-6">
+                        <div class="archive-card">
+                            <a href="https://lxp.kbstar.com/app/prep/hrdcloud?category1=1&category2=16&category3=124&sortTyCdDcd=2073001&pageNo=1" target="_blank" rel="noopener noreferrer" class="archive-link">
+                                <div class="archive-thumbnail">
+                                    <div class="archive-placeholder">
+                                        <svg width="80" height="80" viewBox="0 0 24 24" fill="var(--kb-primary)">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="archive-info">
+                                    <h4>스타런 전체섹션 다시보기</h4>
+                                    <p class="text-muted">KB HRD Cloud에서 보기</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- Footer -->
     <footer class="footer">

@@ -151,6 +151,33 @@
                     <img src="/asset/tech-forum-stamp-off.png" alt="KB Tech Forum" class="brand-logo">
                     KB Tech Forum
                 </a>
+                
+                <!-- 네비게이션 메뉴 -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">메인</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/#schedule">일정</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/#speakers">연사소개</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/#booths">부스소개</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/#event">이벤트</a>
+                        </li>
+                        <li class="nav-item" id="adminNavItem" style="display: none;">
+                            <a class="nav-link" href="/app/admin/" style="color: var(--kb-primary); font-weight: 600;">관리자</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </nav>
     </header>
@@ -158,6 +185,19 @@
     <div class="container mt-4">
         <div id="authCheckMessage" style="display: none;" class="alert alert-error">
             인증이 필요합니다. 잠시 후 인증 페이지로 이동합니다...
+        </div>
+        
+        <!-- 인증 완료 후 QR 재스캔 안내 메시지 -->
+        <div id="authCompletedMessage" style="display: none; background-color: #FFF9E6; border: 2px solid var(--kb-primary); padding: 1.5rem; border-radius: 8px; text-align: center; margin-bottom: 2rem;">
+            <h4 style="color: var(--kb-primary); margin-bottom: 1rem;">
+                <i class="bi bi-check-circle-fill"></i> 사용자 인증이 완료되었습니다.
+            </h4>
+            <p style="font-size: 1.1rem; color: var(--kb-gray); margin-bottom: 1.5rem;">
+                부스 참여 QRCODE를 다시한번 스캔 해 주세요
+            </p>
+            <button class="btn btn-primary btn-lg" onclick="scanQR()" style="font-size: 1.2rem; padding: 0.75rem 2rem;">
+                <i class="bi bi-qr-code-scan"></i> QR 코드 스캔
+            </button>
         </div>
         
         <!-- 참가자 정보 섹션 -->

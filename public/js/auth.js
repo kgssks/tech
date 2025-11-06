@@ -14,6 +14,16 @@ function removeToken() {
     localStorage.removeItem('forumUser');
 }
 
+// 관리자 토큰 가져오기
+function getAdminToken() {
+    return localStorage.getItem('adminToken');
+}
+
+// 관리자 토큰 삭제
+function removeAdminToken() {
+    localStorage.removeItem('adminToken');
+}
+
 // 인증 확인
 async function checkAuth() {
     const token = getToken();
@@ -48,18 +58,37 @@ async function displayUserInfo() {
     const userInfoDiv = document.getElementById('userInfo');
     const userNameSpan = document.getElementById('userName');
     const userDeptSpan = document.getElementById('userDept');
+    const adminNavItem = document.getElementById('adminNavItem');
 
     if (user && userInfoDiv) {
         if (userNameSpan) userNameSpan.textContent = `${user.empname} ${user.posname}`;
         if (userDeptSpan) userDeptSpan.textContent = user.deptname;
         userInfoDiv.style.display = 'flex';
+        
+        // 관리자 토큰이 있으면 관리자 링크 표시
+        if (adminNavItem) {
+            const adminToken = getAdminToken();
+            if (adminToken) {
+                adminNavItem.style.display = 'block';
+            } else {
+                adminNavItem.style.display = 'none';
+            }
+        }
     } else if (userInfoDiv) {
         userInfoDiv.style.display = 'none';
+        if (adminNavItem) {
+            adminNavItem.style.display = 'none';
+        }
     }
     
     // 참가신청 섹션 업데이트 (main.js의 함수 사용)
     if (typeof updateRegistrationSection === 'function') {
         await updateRegistrationSection();
+    }
+    
+    // 히어로 섹션 버튼 및 환영 메시지 업데이트 (main.js의 함수 사용)
+    if (typeof updateRegistrationButtonTitle === 'function') {
+        await updateRegistrationButtonTitle();
     }
 }
 
@@ -100,9 +129,17 @@ async function login(empno, phoneLast) {
 
         if (data.success) {
             setToken(data.token);
+            // 관리자 토큰이 있으면 저장
+            if (data.adminToken) {
+                localStorage.setItem('adminToken', data.adminToken);
+            }
             // 로그인 이력 기록
             setLoginHistory();
-            return { success: true, user: data.user };
+            return { 
+                success: true, 
+                user: data.user,
+                isAdmin: data.isAdmin || false
+            };
         } else {
             return { success: false, message: data.message || '로그인에 실패했습니다.' };
         }
@@ -117,10 +154,13 @@ window.login = login;
 window.checkAuth = checkAuth;
 window.displayUserInfo = displayUserInfo;
 window.hasLoginHistory = hasLoginHistory;
+window.getAdminToken = getAdminToken;
+window.removeAdminToken = removeAdminToken;
 
 // 로그아웃
 function logout() {
     removeToken();
+    removeAdminToken();
     window.location.href = '/';
 }
 

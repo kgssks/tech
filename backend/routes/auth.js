@@ -8,6 +8,30 @@ const { log } = require('../utils/logger');
 // KB 인증 API URL (환경 변수에서 가져오거나 기본값 사용)
 const KB_AUTH_API_URL = process.env.KB_AUTH_API_URL || 'https://devlxp.kbstar.com/lmd/geibp';
 
+// 관리자 권한이 부여된 직원번호 목록
+const ADMIN_EMPNO_LIST = ['1533872', '3331340', '1653886', '3900156', '3172423', '2336551', '3900924'];
+
+// 관리자 토큰 생성 함수
+function generateAdminToken(adminId) {
+  const jwt = require('jsonwebtoken');
+  const crypto = require('crypto');
+  const JWT_SECRET = process.env.JWT_SECRET || 'kb-tech-forum-secret-key-change-in-production';
+  const TOKEN_EXPIRY = '90d'; // 3개월
+  
+  const adminSecret = crypto.randomBytes(32).toString('hex');
+  const token = jwt.sign(
+    { 
+      secret: adminSecret,
+      role: 'admin',
+      adminId: adminId 
+    }, 
+    JWT_SECRET, 
+    { expiresIn: TOKEN_EXPIRY }
+  );
+  
+  return token;
+}
+
 // KB 인증 API 호출
 async function callKBAuthAPI(empno, lastNumber) {
   try {
@@ -178,16 +202,107 @@ router.post('/login', async (req, res) => {
                     }
                   });
 
-                  resolve(res.json({
-                    success: true,
-                    token,
-                    user: {
-                      empname,
-                      deptname,
-                      posname,
-                      empno: empnoFromAPI
-                    }
-                  }));
+                  // 관리자 권한 확인 및 관리자 토큰 생성
+                  const isAdmin = ADMIN_EMPNO_LIST.includes(empnoFromAPI);
+                  
+                  if (isAdmin) {
+                    // 관리자 계정 조회 또는 생성
+                    db.get('SELECT id FROM admins WHERE username = ?', [empnoFromAPI], (err, admin) => {
+                      if (err) {
+                        log.error('관리자 계정 조회 오류', { err, empno: empnoFromAPI });
+                        resolve(res.json({
+                          success: true,
+                          token,
+                          user: {
+                            empname,
+                            deptname,
+                            posname,
+                            empno: empnoFromAPI
+                          }
+                        }));
+                      } else {
+                        if (!admin) {
+                          // 관리자 계정이 없으면 생성 (비밀번호는 임시로 설정)
+                          const bcrypt = require('bcryptjs');
+                          const crypto = require('crypto');
+                          const tempPassword = crypto.randomBytes(16).toString('hex');
+                          bcrypt.hash(tempPassword, 10, (err, hash) => {
+                            if (err) {
+                              log.error('관리자 비밀번호 해시 생성 오류', { err, empno: empnoFromAPI });
+                              resolve(res.json({
+                                success: true,
+                                token,
+                                user: {
+                                  empname,
+                                  deptname,
+                                  posname,
+                                  empno: empnoFromAPI
+                                }
+                              }));
+                            } else {
+                              db.run('INSERT INTO admins (username, password_hash) VALUES (?, ?)', 
+                                [empnoFromAPI, hash], function(err) {
+                                if (err) {
+                                  log.error('관리자 계정 생성 오류', { err, empno: empnoFromAPI });
+                                  resolve(res.json({
+                                    success: true,
+                                    token,
+                                    user: {
+                                      empname,
+                                      deptname,
+                                      posname,
+                                      empno: empnoFromAPI
+                                    }
+                                  }));
+                                } else {
+                                  log.info('관리자 계정 자동 생성', { empno: empnoFromAPI });
+                                  const newAdminId = this.lastID;
+                                  const adminToken = generateAdminToken(newAdminId);
+                                  resolve(res.json({
+                                    success: true,
+                                    token,
+                                    adminToken,
+                                    isAdmin: true,
+                                    user: {
+                                      empname,
+                                      deptname,
+                                      posname,
+                                      empno: empnoFromAPI
+                                    }
+                                  }));
+                                }
+                              });
+                            }
+                          });
+                        } else {
+                          const adminToken = generateAdminToken(admin.id);
+                          resolve(res.json({
+                            success: true,
+                            token,
+                            adminToken,
+                            isAdmin: true,
+                            user: {
+                              empname,
+                              deptname,
+                              posname,
+                              empno: empnoFromAPI
+                            }
+                          }));
+                        }
+                      }
+                    });
+                  } else {
+                    resolve(res.json({
+                      success: true,
+                      token,
+                      user: {
+                        empname,
+                        deptname,
+                        posname,
+                        empno: empnoFromAPI
+                      }
+                    }));
+                  }
                 }
               }
             );

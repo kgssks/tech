@@ -522,5 +522,135 @@ router.get('/prize-claims', (req, res) => {
   );
 });
 
+// 관리자 토큰 검증 미들웨어 (JWT 기반)
+function verifyAdminToken(req, res, next) {
+  const authHeader = req.headers.authorization || req.headers['kb-auth'];
+  
+  if (!authHeader) {
+    return res.status(401).json({
+      success: false,
+      message: '인증 토큰이 필요합니다.'
+    });
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const jwt = require('jsonwebtoken');
+  const JWT_SECRET = process.env.JWT_SECRET || 'kb-tech-forum-secret-key-change-in-production';
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: '관리자 권한이 필요합니다.'
+      });
+    }
+    req.adminId = decoded.adminId;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: '유효하지 않은 토큰입니다.'
+    });
+  }
+}
+
+// 테스트 데이터 생성 (가상 사용자 150명 및 추첨번호 부여)
+router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
+  const db = getDB();
+  const crypto = require('crypto');
+  
+  // 가상 부서명 및 직책 목록
+  const departments = ['테크그룹', '금융AI센터', '테크기획부', 'IT기획부', '디지털그룹', '데이터그룹', '보안그룹'];
+  const positions = ['주임', '대리', '과장', '차장', '부장', '선임', '수석'];
+  
+  try {
+    // 기존 최대 추첨번호 확인
+    const maxLotteryResult = await new Promise((resolve, reject) => {
+      db.get('SELECT MAX(lottery_number) as maxLottery FROM lottery_numbers', (err, result) => {
+        if (err) reject(err);
+        else resolve(result);
+      });
+    });
+    
+    let startLotteryNumber = 1;
+    if (maxLotteryResult && maxLotteryResult.maxLottery) {
+      startLotteryNumber = maxLotteryResult.maxLottery + 1;
+    }
+    
+    let createdCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    // 150명의 가상 사용자 생성 (Promise 배열로 변환)
+    const createPromises = [];
+    
+    for (let i = 1; i <= 150; i++) {
+      const empno = `TEST${String(i).padStart(3, '0')}`;
+      const empname = `테스트사용자${i}`;
+      const deptname = departments[i % departments.length];
+      const posname = positions[i % positions.length];
+      const tokenSecret = crypto.randomBytes(32).toString('hex');
+      const lotteryNumber = startLotteryNumber + i - 1;
+      
+      // 사용자 생성 Promise
+      const createUserPromise = new Promise((resolve) => {
+        db.run(
+          `INSERT INTO users (empno, empname, deptname, posname, token_secret) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [empno, empname, deptname, posname, tokenSecret],
+          function(err) {
+            if (err) {
+              errorCount++;
+              errors.push(`사용자 ${empno} 생성 실패: ${err.message}`);
+              resolve({ success: false, empno });
+            } else {
+              const userId = this.lastID;
+              createdCount++;
+              
+              // 추첨번호 부여 Promise
+              db.run(
+                `INSERT OR IGNORE INTO lottery_numbers (user_id, lottery_number) 
+                 VALUES (?, ?)`,
+                [userId, lotteryNumber],
+                (err) => {
+                  if (err) {
+                    errors.push(`사용자 ${empno} 추첨번호 부여 실패: ${err.message}`);
+                  }
+                  resolve({ success: true, empno, userId, lotteryNumber });
+                }
+              );
+            }
+          }
+        );
+      });
+      
+      createPromises.push(createUserPromise);
+    }
+    
+    // 모든 사용자 생성 완료 대기
+    await Promise.all(createPromises);
+    
+    res.json({
+      success: true,
+      message: `테스트 데이터 생성 완료`,
+      created: createdCount,
+      errors: errorCount,
+      errorDetails: errors.length > 0 ? errors : undefined,
+      lotteryNumberRange: {
+        start: startLotteryNumber,
+        end: startLotteryNumber + createdCount - 1
+      }
+    });
+    
+  } catch (error) {
+    console.error('테스트 데이터 생성 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: `데이터베이스 오류가 발생했습니다: ${error.message}`
+    });
+  }
+});
+
 module.exports = router;
 

@@ -60,7 +60,8 @@
                 if (result.success) {
                     messageDiv.innerHTML = '<div class="alert alert-success">인증이 완료되었습니다!</div>';
                     setTimeout(() => {
-                        window.location.href = '/app/event/';
+                        // 인증 완료 플래그를 쿼리 파라미터로 전달하여 QR 재스캔 안내 표시
+                        window.location.href = '/app/event/?authCompleted=true';
                     }, 1500);
                 } else {
                     messageDiv.innerHTML = `<div class="alert alert-error">${result.message || '인증에 실패했습니다.'}</div>`;

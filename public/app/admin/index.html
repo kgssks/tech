@@ -57,6 +57,34 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             text-align: center;
         }
+        .lottery-notice {
+            background: #FFF9E6;
+            border: 2px solid var(--kb-primary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .lottery-notice.mobile-only {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .lottery-notice.mobile-only {
+                display: block;
+            }
+        }
+        .lottery-notice p {
+            margin: 0.5rem 0;
+            color: var(--kb-gray);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        .lottery-notice p:first-child {
+            margin-top: 0;
+        }
+        .lottery-notice p:last-child {
+            margin-bottom: 0;
+        }
         .lottery-wheel-container {
             display: flex;
             justify-content: center;
@@ -393,6 +421,16 @@
                 </div>
             </div>
 
+            <!-- 테스트 데이터 생성 -->
+            <div class="qr-section mb-4">
+                <h3>테스트 데이터 생성</h3>
+                <p class="text-muted">경품 추첨 기능 검증을 위한 가상 사용자 150명을 생성합니다.</p>
+                <button class="btn btn-warning" id="generateTestDataBtn" onclick="generateTestData()">
+                    테스트 사용자 150명 생성
+                </button>
+                <div id="testDataResult" class="mt-3" style="display: none;"></div>
+            </div>
+
             <!-- QR 코드 생성 -->
             <div class="qr-section">
                 <h3>부스 QR 코드 생성</h3>
@@ -447,6 +485,19 @@
             <!-- 경품 추첨 -->
             <div class="lottery-section">
                 <h3>경품 추첨</h3>
+                
+                <!-- 안내 메시지 -->
+                <div class="lottery-notice mobile-only">
+                    <p><strong>⚠️ 모바일 접속 안내</strong></p>
+                    <p>경품추첨은 PC화면에 최적화 되어있습니다</p>
+                </div>
+                
+                <div class="lottery-notice">
+                    <p><strong>📌 안내사항</strong></p>
+                    <p>본 테크포럼 사이트는 100% 바이브코딩으로 제작되었습니다. 추첨룰렛의 작동과정에서 일부 부자연스럽게 보일 수 있으나 임의로 조작된 번호 추첨이 아님을 안심하시기 바랍니다.</p>
+                    <p>해당 바이브코딩 과정의 전체 프롬프트는 행사 종료 후 공개될 예정입니다.</p>
+                </div>
+                
                 <p class="text-muted mb-3" id="lotteryInfo">전체 참여인원 확인 중...</p>
                 
                 <!-- 룰렛 컨테이너 -->

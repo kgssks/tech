@@ -113,6 +113,70 @@ async function loadDashboard() {
     // 로그는 탭 클릭 시 로드
 }
 
+// 테스트 데이터 생성 (가상 사용자 150명)
+async function generateTestData() {
+    const btn = document.getElementById('generateTestDataBtn');
+    const resultDiv = document.getElementById('testDataResult');
+    
+    if (!btn || !resultDiv) return;
+    
+    // 확인
+    if (!confirm('가상 사용자 150명을 생성하시겠습니까?\n기존 사용자와 중복되지 않도록 생성됩니다.')) {
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = '생성 중...';
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-info">테스트 데이터 생성 중입니다. 잠시만 기다려주세요...</div>';
+    
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+        
+        const response = await fetch('/api/admin/generate-test-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h5>테스트 데이터 생성 완료</h5>
+                    <p>생성된 사용자: ${data.created}명</p>
+                    <p>오류 발생: ${data.errors}건</p>
+                    <p>추첨번호 범위: ${data.lotteryNumberRange.start} ~ ${data.lotteryNumberRange.end}</p>
+                    ${data.errorDetails && data.errorDetails.length > 0 ? `
+                        <details class="mt-2">
+                            <summary>오류 상세 (${data.errorDetails.length}건)</summary>
+                            <pre style="max-height: 200px; overflow-y: auto;">${data.errorDetails.join('\n')}</pre>
+                        </details>
+                    ` : ''}
+                </div>
+            `;
+            
+            // 대시보드 새로고침
+            await loadDashboard();
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">오류: ${data.message || '테스트 데이터 생성에 실패했습니다.'}</div>`;
+        }
+    } catch (error) {
+        console.error('테스트 데이터 생성 오류:', error);
+        resultDiv.innerHTML = `<div class="alert alert-danger">오류: ${error.message || '네트워크 오류가 발생했습니다.'}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '테스트 사용자 150명 생성';
+    }
+}
+
 // 통계 로드
 async function loadStats() {
     try {
@@ -780,7 +844,6 @@ async function initLotteryWheels() {
             wheels.forEach(wheel => {
                 const wheelInner = document.getElementById(wheel.id);
                 if (!wheelInner) {
-                    console.error(`룰렛 요소를 찾을 수 없습니다: ${wheel.id}`);
                     return;
                 }
                 
@@ -812,32 +875,17 @@ async function initLotteryWheels() {
                             }
                         }
                         
-                        // 디버깅: 초기 위치 확인
-                        console.log(`[초기화] 룰렛 ${wheel.id} (${wheel.label}) 초기화 완료:`, {
-                            자릿수개수: wheel.digits.length,
-                            사용가능숫자: wheel.digits.join(','),
-                            위쪽패딩세트: result.topPaddingSets,
-                            패딩항목수: result.paddingItemsCount,
-                            첫항목인덱스: result.firstItemIndex,
-                            총항목수: result.totalItems,
-                            초기오프셋: result.initialOffset.toFixed(2),
-                            transform: wheelInner.style.transform,
-                            computedTransform: window.getComputedStyle(wheelInner).transform,
-                            가시성: window.getComputedStyle(wheelInner).visibility,
-                            투명도: window.getComputedStyle(wheelInner).opacity
-                        });
                     });
                 });
             });
         }
     } catch (error) {
-        console.error('룰렛 초기화 오류:', error);
+        // 룰렛 초기화 오류 처리
     }
 }
 
 // 룰렛 초기화 함수 (추첨 시작 전 모든 상태 초기화 및 DOM 재생성)
 function resetLotteryWheels() {
-    console.log('[초기화] 룰렛 초기화 시작 - DOM 재생성');
     
     // 기존 타이머 모두 정리
     wheelCheckIntervals.forEach(interval => clearInterval(interval));
@@ -859,13 +907,6 @@ function resetLotteryWheels() {
         
         // DOM 완전히 새로 생성 (기존 DOM 삭제 후 재생성)
         const result = createWheelDOM(wheelInner, availableDigits, label);
-        
-        console.log(`[초기화] 룰렛 ${i} (${label}) DOM 재생성 완료:`, {
-            자릿수개수: availableDigits.length,
-            사용가능숫자: availableDigits.join(','),
-            총항목수: result.totalItems,
-            초기오프셋: result.initialOffset.toFixed(2)
-        });
     }
     
     // DOM 렌더링 완료 후 위치 재확인 및 조정
@@ -908,10 +949,8 @@ function resetLotteryWheels() {
                     wheelInner.style.transition = 'none';
                     wheelInner.style.transform = `translateY(${initialOffset}px)`;
                     void wheelInner.offsetHeight;
-                    console.log(`[초기화] 룰렛 ${i} 위치 재조정: ${currentY.toFixed(2)} → ${initialOffset.toFixed(2)}`);
                 }
             }
-            console.log('[초기화] 모든 룰렛 DOM 재생성 및 초기화 완료');
         });
     });
 }
@@ -935,8 +974,6 @@ async function drawLottery() {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     try {
-        console.log('[추첨 시작] 룰렛 회전 시작');
-        
         // 각 자릿수별로 랜덤 스크롤 값 생성
         // 백의자리는 숫자가 적으므로(2개 또는 5개) 20~30 범위로 제한하여 배정된 숫자 범위 내에서만 회전
         // 십의자리, 일의자리는 0~9로 10개이므로 20~100 범위 유지
@@ -946,15 +983,8 @@ async function drawLottery() {
             Math.floor(Math.random() * (100 - 20 + 1)) + 20  // 일의자리: 20~100
         ];
         
-        console.log('[추첨 시작] 생성된 랜덤 스크롤 값:', {
-            백의자리: randomScrollValues[0],
-            십의자리: randomScrollValues[1],
-            일의자리: randomScrollValues[2]
-        });
-        
         // 각 룰렛을 랜덤 스크롤 값만큼 회전시킴
         spinWheelsRandom(randomScrollValues, (finalDigits) => {
-            console.log('[추첨 결과] 최종 숫자 조합:', finalDigits);
             // 애니메이션 완료 후 화살표 위치의 숫자를 읽어서 당첨번호 결정
             const drawnNumber = parseInt(finalDigits.join(''));
             
@@ -994,7 +1024,6 @@ async function drawLottery() {
             });
         });
     } catch (error) {
-        console.error('추첨 오류:', error);
         resultDiv.innerHTML = '<div class="alert alert-error">추첨 중 오류가 발생했습니다.</div>';
         drawBtn.disabled = false;
         drawBtn.textContent = '추첨하기';
@@ -1023,9 +1052,148 @@ async function checkWinner(drawnNumber, callback) {
     }
 }
 
+// 각 룰렛의 애니메이션 완료 후 최종 위치 처리 함수
+function processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback) {
+    // 이미 완료된 룰렛인 경우 중복 실행 방지
+    if (wheelCompletionFlags[index] === true) {
+        return;
+    }
+    
+    const wheelInner = document.getElementById(`wheelInner${wheelNum}`);
+    if (!wheelInner) {
+        return;
+    }
+    
+    const availableDigits = index === 0 ? lotteryDigits.hundreds : 
+                            index === 1 ? lotteryDigits.tens : lotteryDigits.ones;
+    
+    // 애니메이션 클래스 제거 및 즉시 중단
+    wheelInner.classList.remove('spinning');
+    wheelInner.classList.remove('spinning-slow');
+    
+    // transition을 즉시 제거하여 애니메이션 중단
+    wheelInner.style.transition = 'none';
+    
+    // 최종 위치를 정확히 조정하여 순환 처리 확보
+    const itemHeight = 40;
+    const digitCount = availableDigits.length;
+    const oneCycle = digitCount * itemHeight;
+    const wheelHeight = 200;
+    const centerY = wheelHeight / 2;
+    
+    // 현재 transform 위치 가져오기
+    const currentTransform = window.getComputedStyle(wheelInner).transform;
+    let finalY = 0;
+    if (currentTransform && currentTransform !== 'none') {
+        const matrix = currentTransform.match(/matrix.*\((.+)\)/);
+        if (matrix && matrix[1]) {
+            const values = matrix[1].split(',');
+            if (values.length >= 6) {
+                finalY = parseFloat(values[5]) || 0;
+            }
+        }
+    }
+    
+    // 애니메이션 완료 후 최종 위치를 순환 처리하여 보이는 범위로 조정
+    const maxRepeatCount = 200; // 랜덤값의 2배 범위 (100 * 2 = 200)
+    const topPaddingSets = Math.ceil(maxRepeatCount / digitCount / 2);
+    const paddingItemsCount = topPaddingSets * digitCount;
+    const centerItemIndex = paddingItemsCount;
+    const centerItemCenter = (centerItemIndex * itemHeight) + (itemHeight / 2);
+    const centerOffset = centerY - centerItemCenter;
+    const initialPosition = centerOffset;
+    
+    // 애니메이션 종료 위치에서 초기 위치까지의 거리 계산
+    const distanceFromInitial = initialPosition - finalY;
+    
+    // 순환 처리: 거리를 한 바퀴로 나눈 나머지 (양수로 변환)
+    const normalizedDistance = ((distanceFromInitial % oneCycle) + oneCycle) % oneCycle;
+    
+    // 정규화된 거리를 사용하여 정확한 숫자 인덱스 계산
+    const digitIndex = Math.round(normalizedDistance / itemHeight) % digitCount;
+    const finalDigit = availableDigits[digitIndex];
+    
+    // 최종 위치 재계산 (순환 처리된 위치 - 정확히 해당 숫자가 중앙에 오도록)
+    const finalNormalizedPosition = initialPosition - (digitIndex * itemHeight);
+    
+    // 정확한 위치로 재조정 (transition 없이 즉시) - 보이는 범위로 이동
+    wheelInner.style.transition = 'none';
+    wheelInner.style.transform = `translateY(${finalNormalizedPosition}px)`;
+    wheelInner.style.visibility = 'visible';
+    wheelInner.style.opacity = '1';
+    
+    // 강제 리플로우
+    void wheelInner.offsetHeight;
+    
+    // 최종 숫자 저장 (순환 처리된 숫자 사용)
+    finalDigits[index] = finalDigit;
+    
+    // 화살표 위치(중앙)에 있는 숫자 찾기 (검증용)
+    const wheelRect = wheelInner.parentElement.getBoundingClientRect();
+    const visualCenterY = wheelRect.top + wheelRect.height / 2;
+    
+    // 선택된 숫자 강조 및 반전 효과
+    setTimeout(() => {
+        // 모든 항목에서 selected 클래스 제거 및 스타일 초기화
+        wheelInner.querySelectorAll('.wheel-item').forEach(item => {
+            item.classList.remove('selected');
+            item.style.background = '';
+            item.style.color = '';
+            item.style.opacity = '';
+        });
+        
+        // 순환 처리된 숫자의 모든 항목 찾기
+        const sameDigitItems = wheelInner.querySelectorAll(`.wheel-item[data-digit="${finalDigit}"]`);
+        let selectedItem = null;
+        let minDistance = Infinity;
+        
+        sameDigitItems.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const itemCenterY = rect.top + rect.height / 2;
+            const distance = Math.abs(itemCenterY - visualCenterY);
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                selectedItem = item;
+            }
+        });
+        
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+            
+            // 같은 숫자의 다른 항목도 약간 투명하게
+            sameDigitItems.forEach(item => {
+                if (item !== selectedItem) {
+                    item.style.opacity = '0.6';
+                }
+            });
+        }
+        
+        // 이 룰렛 완료 표시 (중복 방지를 위해 이미 체크했지만 다시 확인)
+        if (wheelCompletionFlags[index] === false) {
+            wheelCompletionFlags[index] = true;
+            
+            // 모든 룰렛이 완료되었는지 확인
+            if (wheelCompletionFlags.every(flag => flag === true)) {
+                // 모든 룰렛이 멈춘 후 콜백 실행 (최종 숫자 전달)
+                // 콜백이 이미 실행되었는지 확인하기 위해 전역 플래그 사용
+                if (callback && typeof callback === 'function' && !callbackExecuted) {
+                    callbackExecuted = true; // 콜백 실행 플래그 설정
+                    // 짧은 지연을 두어 모든 룰렛이 시각적으로 완전히 멈춘 후 콜백 실행
+                    setTimeout(() => {
+                        callback(finalDigits);
+                    }, 200);
+                }
+            }
+        }
+    }, 100);
+}
+
 // 룰렛 랜덤 회전 애니메이션 (각 자릿수별 랜덤 스크롤 값만큼 회전)
 // 전역 변수로 타이머 관리 (초기화 시 정리)
 let wheelCheckIntervals = [];
+// 콜백 중복 실행 방지를 위한 플래그 (각 추첨마다 새로 생성)
+let callbackExecuted = false;
 
 function spinWheelsRandom(randomScrollValues, callback) {
     const wheels = [1, 2, 3];
@@ -1034,6 +1202,9 @@ function spinWheelsRandom(randomScrollValues, callback) {
     // 기존 체크 인터벌 모두 정리
     wheelCheckIntervals.forEach(interval => clearInterval(interval));
     wheelCheckIntervals = [];
+    
+    // 콜백 실행 플래그 초기화 (새로운 추첨 시작)
+    callbackExecuted = false;
     
     // 각 자릿수별로 5~10초 범위의 랜덤 애니메이션 시간 생성
     // 각 룰렛이 독립적으로 다른 시간으로 회전하여 자연스러운 효과
@@ -1044,6 +1215,7 @@ function spinWheelsRandom(randomScrollValues, callback) {
     ];
     
     const finalDigits = []; // 각 자릿수의 최종 숫자
+    const wheelCompletionFlags = [false, false, false]; // 각 룰렛의 완료 여부 추적
     
     wheels.forEach((wheelNum, index) => {
         const wheelInner = document.getElementById(`wheelInner${wheelNum}`);
@@ -1130,23 +1302,6 @@ function spinWheelsRandom(randomScrollValues, callback) {
             }
         }
         
-        // 콘솔 로그: 회전 시작 정보
-        console.log(`[룰렛 ${wheelNum}] 회전 시작:`, {
-            자릿수: index === 0 ? '백의자리' : index === 1 ? '십의자리' : '일의자리',
-            원본현재위치: currentY,
-            초기오프셋: initialOffset,
-            정규화현재위치: normalizedCurrentY,
-            랜덤스크롤값: randomScrollValue,
-            랜덤픽셀: randomPixel,
-            애니메이션시간: `${(animationDuration / 1000).toFixed(2)}초`,
-            한바퀴거리: oneCycle,
-            총회전거리: totalSpinDistance,
-            애니메이션시작위치: animationStartPosition,
-            애니메이션종료위치: animationFinalPosition,
-            정규화최종위치: actualFinalPosition,
-            느린애니메이션: isSlowAnimation,
-            감속임계값: threshold
-        });
         
         // 약간의 지연을 두고 각 룰렛을 순차적으로 시작
         setTimeout(() => {
@@ -1157,29 +1312,10 @@ function spinWheelsRandom(randomScrollValues, callback) {
                 // 애니메이션 중에는 실제 거리로 스크롤
                 const midPosition = animationStartPosition - fastDistance;
                 
-                console.log(`[룰렛 ${wheelNum}] 두 단계 애니메이션:`, {
-                    시작위치: animationStartPosition,
-                    중간위치: midPosition,
-                    애니메이션종료위치: animationFinalPosition,
-                    최종정규화위치: actualFinalPosition,
-                    빠른구간거리: fastDistance,
-                    느린구간거리: slowDistance
-                });
-                
                 // DOM 요소 존재 확인 및 보장
                 if (!wheelInner || !wheelInner.parentElement) {
-                    console.error(`[룰렛 ${wheelNum}] DOM 요소가 없습니다!`);
                     return;
                 }
-                
-                // DOM 요소가 존재하는지 확인
-                const itemsBefore = wheelInner.querySelectorAll('.wheel-item');
-                console.log(`[룰렛 ${wheelNum}] 회전 시작 전 DOM 상태:`, {
-                    요소존재: !!wheelInner,
-                    부모존재: !!wheelInner.parentElement,
-                    항목수: itemsBefore.length,
-                    현재위치: normalizedCurrentY
-                });
                 
                 // 첫 번째 단계: 빠른 회전 (90%) - 실제 거리로 스크롤
                 wheelInner.classList.add('spinning');
@@ -1206,7 +1342,6 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     // DOM 요소 존재 확인
                     const currentElement = document.getElementById(`wheelInner${wheelNum}`);
                     if (!currentElement || !currentElement.parentElement) {
-                        console.error(`[룰렛 ${wheelNum}] DOM 요소가 사라졌습니다!`);
                         clearInterval(checkInterval);
                         return;
                     }
@@ -1235,30 +1370,13 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     
                     // 숫자 항목들도 보이도록 보장
                     const items = wheelInner.querySelectorAll('.wheel-item');
-                    if (items.length === 0) {
-                        console.error(`[룰렛 ${wheelNum}] 숫자 항목이 없습니다!`);
-                    } else {
+                    if (items.length > 0) {
                         items.forEach(item => {
                             item.style.visibility = 'visible';
                             item.style.opacity = '1';
                             item.style.display = 'flex';
                         });
                     }
-                    
-                    // DOM 상태 확인
-                    const rect = wheelInner.getBoundingClientRect();
-                    console.log(`[룰렛 ${wheelNum}] 회전 중 (빠른구간):`, {
-                        위치: checkY.toFixed(2),
-                        항목수: items.length,
-                        DOM존재: !!wheelInner,
-                        부모존재: !!wheelInner.parentElement,
-                        getBoundingClientRect: {
-                            width: rect.width,
-                            height: rect.height,
-                            top: rect.top,
-                            left: rect.left
-                        }
-                    });
                 }, 1000);
                 
                 // 체크 인터벌을 전역 배열에 저장 (초기화 시 정리용)
@@ -1271,10 +1389,37 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     if (intervalIndex > -1) {
                         wheelCheckIntervals.splice(intervalIndex, 1);
                     }
-                    console.log(`[룰렛 ${wheelNum}] 느린구간 시작:`, { 
-                        애니메이션종료위치: animationFinalPosition,
-                        정규화최종위치: actualFinalPosition 
-                    });
+                    
+                    // 중간 지점에서 목표 지점까지의 거리 계산
+                    const remainingDistance = Math.abs(animationFinalPosition - midPosition);
+                    const itemHeight = 40;
+                    const digitCount = availableDigits.length;
+                    const oneCycle = digitCount * itemHeight;
+                    
+                    // 현재 위치 기준으로 다음 숫자 항목의 중간 지점까지 도달 가능한지 확인
+                    const currentOffsetFromInitial = midPosition - initialOffset;
+                    const normalizedCurrentOffset = ((currentOffsetFromInitial % oneCycle) + oneCycle) % oneCycle;
+                    const currentDigitIndex = Math.floor(normalizedCurrentOffset / itemHeight);
+                    const nextDigitIndex = (currentDigitIndex + 1) % digitCount;
+                    const nextDigitCenterOffset = nextDigitIndex * itemHeight + (itemHeight / 2);
+                    const distanceToNextDigitCenter = nextDigitCenterOffset - normalizedCurrentOffset;
+                    
+                    // 목표 지점까지의 거리가 다음 숫자 중간 지점을 넘지 못하면 즉시 종료
+                    // 이미 완료된 룰렛인 경우 처리하지 않음
+                    if (remainingDistance < distanceToNextDigitCenter && wheelCompletionFlags[index] !== true) {
+                        // 즉시 종료하고 최종 위치 처리
+                        wheelInner.classList.remove('spinning');
+                        wheelInner.style.transition = 'none';
+                        wheelInner.style.transform = `translateY(${animationFinalPosition}px)`;
+                        wheelInner.style.visibility = 'visible';
+                        wheelInner.style.opacity = '1';
+                        
+                        // 즉시 최종 위치 처리
+                        setTimeout(() => {
+                            processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback);
+                        }, 50);
+                        return;
+                    }
                     
                     wheelInner.classList.remove('spinning');
                     wheelInner.classList.add('spinning-slow');
@@ -1284,28 +1429,75 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     wheelInner.style.transform = `translateY(${animationFinalPosition}px)`;
                     wheelInner.style.visibility = 'visible';
                     wheelInner.style.opacity = '1';
+                    
+                    // 느린 구간에서도 주기적으로 확인하여 즉시 종료 가능 여부 체크
+                    let slowCheckCount = 0;
+                    const slowCheckInterval = setInterval(() => {
+                        slowCheckCount++;
+                        const currentTransform = window.getComputedStyle(wheelInner).transform;
+                        let currentSlowY = 0;
+                        if (currentTransform && currentTransform !== 'none') {
+                            const matrix = currentTransform.match(/matrix.*\((.+)\)/);
+                            if (matrix && matrix[1]) {
+                                const values = matrix[1].split(',');
+                                if (values.length >= 6) {
+                                    currentSlowY = parseFloat(values[5]) || 0;
+                                }
+                            }
+                        }
+                        
+                        // 현재 위치에서 목표 지점까지의 남은 거리
+                        const remainingDist = Math.abs(animationFinalPosition - currentSlowY);
+                        
+                        // 현재 위치 기준으로 다음 숫자 항목의 중간 지점까지 도달 가능한지 확인
+                        const currentOffset = currentSlowY - initialOffset;
+                        const normalizedOffset = ((currentOffset % oneCycle) + oneCycle) % oneCycle;
+                        const currentDigitIdx = Math.floor(normalizedOffset / itemHeight);
+                        const nextDigitIdx = (currentDigitIdx + 1) % digitCount;
+                        const nextDigitCenterOff = nextDigitIdx * itemHeight + (itemHeight / 2);
+                        const distToNextDigitCenter = nextDigitCenterOff - normalizedOffset;
+                        
+                        // 목표 지점까지의 거리가 다음 숫자 중간 지점을 넘지 못하면 즉시 종료
+                        // 이미 완료된 룰렛인 경우 처리하지 않음
+                        if (remainingDist < distToNextDigitCenter && remainingDist < itemHeight * 0.3 && wheelCompletionFlags[index] !== true) {
+                            clearInterval(slowCheckInterval);
+                            wheelInner.classList.remove('spinning-slow');
+                            wheelInner.style.transition = 'none';
+                            wheelInner.style.transform = `translateY(${animationFinalPosition}px)`;
+                            wheelInner.style.visibility = 'visible';
+                            wheelInner.style.opacity = '1';
+                            
+                            // 즉시 최종 위치 처리
+                            setTimeout(() => {
+                                processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback);
+                            }, 50);
+                        }
+                        
+                        // 최대 확인 횟수 제한 (느린 구간 시간의 2배)
+                        if (slowCheckCount > (animationDuration * 0.1 / 100) * 2) {
+                            clearInterval(slowCheckInterval);
+                        }
+                    }, 100);
+                    
+                    // 느린 구간이 끝나면 체크 인터벌 정리
+                    setTimeout(() => {
+                        clearInterval(slowCheckInterval);
+                    }, animationDuration * 0.1 + 200);
+                    
+                    // 이 룰렛의 애니메이션이 완전히 종료된 후 최종 위치 처리
+                    // 이미 완료되지 않은 경우에만 처리
+                    setTimeout(() => {
+                        if (wheelCompletionFlags[index] !== true) {
+                            processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback);
+                        }
+                    }, animationDuration * 0.1 + 100); // 느린 구간 시간 + 여유 시간
                 }, animationDuration * 0.9); // 90% 지점에서 전환
             } else {
                 // 일반 애니메이션: 일정한 속도로 회전 - 실제 거리로 스크롤
-                console.log(`[룰렛 ${wheelNum}] 일반 애니메이션:`, { 
-                    시작위치: animationStartPosition,
-                    애니메이션종료위치: animationFinalPosition,
-                    정규화최종위치: actualFinalPosition,
-                    총회전거리: totalSpinDistance
-                });
-                
                 // DOM 요소 존재 확인 및 보장
                 if (!wheelInner || !wheelInner.parentElement) {
-                    console.error(`[룰렛 ${wheelNum}] DOM 요소가 없습니다!`);
                     return;
                 }
-                
-                const itemsBefore = wheelInner.querySelectorAll('.wheel-item');
-                console.log(`[룰렛 ${wheelNum}] 일반 애니메이션 시작 전 DOM 상태:`, {
-                    요소존재: !!wheelInner,
-                    부모존재: !!wheelInner.parentElement,
-                    항목수: itemsBefore.length
-                });
                 
                 wheelInner.classList.add('spinning');
                 // 동적 애니메이션 시간 설정
@@ -1327,12 +1519,14 @@ function spinWheelsRandom(randomScrollValues, callback) {
                 // 강제 리플로우로 DOM 상태 확인
                 void wheelInner.offsetHeight;
                 
-                // 회전 중간 지점 확인 (1초마다) 및 DOM/가시성 보장
+                // 애니메이션 진행 중 주기적으로 확인하여 즉시 종료 가능 여부 체크
+                let checkCount = 0;
                 const checkInterval = setInterval(() => {
+                    checkCount++;
+                    
                     // DOM 요소 존재 확인
                     const currentElement = document.getElementById(`wheelInner${wheelNum}`);
                     if (!currentElement || !currentElement.parentElement) {
-                        console.error(`[룰렛 ${wheelNum}] DOM 요소가 사라졌습니다!`);
                         clearInterval(checkInterval);
                         return;
                     }
@@ -1361,9 +1555,7 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     
                     // 숫자 항목들도 보이도록 보장
                     const items = wheelInner.querySelectorAll('.wheel-item');
-                    if (items.length === 0) {
-                        console.error(`[룰렛 ${wheelNum}] 숫자 항목이 없습니다!`);
-                    } else {
+                    if (items.length > 0) {
                         items.forEach(item => {
                             item.style.visibility = 'visible';
                             item.style.opacity = '1';
@@ -1371,21 +1563,51 @@ function spinWheelsRandom(randomScrollValues, callback) {
                         });
                     }
                     
-                    // DOM 상태 확인
-                    const rect = wheelInner.getBoundingClientRect();
-                    console.log(`[룰렛 ${wheelNum}] 회전 중:`, {
-                        위치: checkY.toFixed(2),
-                        항목수: items.length,
-                        DOM존재: !!wheelInner,
-                        부모존재: !!wheelInner.parentElement,
-                        getBoundingClientRect: {
-                            width: rect.width,
-                            height: rect.height,
-                            top: rect.top,
-                            left: rect.left
+                    // 목표 지점까지 남은 거리 계산
+                    const remainingDistance = Math.abs(animationFinalPosition - checkY);
+                    const digitCount = availableDigits.length;
+                    const oneCycle = digitCount * itemHeight;
+                    
+                    // 현재 위치 기준으로 다음 숫자 항목의 중간 지점까지 도달 가능한지 확인
+                    const currentOffsetFromInitial = checkY - initialOffset;
+                    const normalizedCurrentOffset = ((currentOffsetFromInitial % oneCycle) + oneCycle) % oneCycle;
+                    const currentDigitIndex = Math.floor(normalizedCurrentOffset / itemHeight);
+                    const nextDigitIndex = (currentDigitIndex + 1) % digitCount;
+                    const nextDigitCenterOffset = nextDigitIndex * itemHeight + (itemHeight / 2);
+                    const distanceToNextDigitCenter = nextDigitCenterOffset - normalizedCurrentOffset;
+                    
+                    // 목표 지점까지의 거리가 다음 숫자 중간 지점을 넘지 못하고, 매우 가까운 경우 즉시 종료
+                    // 이미 완료된 룰렛인 경우 처리하지 않음
+                    if (remainingDistance < distanceToNextDigitCenter && remainingDistance < itemHeight * 0.3 && wheelCompletionFlags[index] !== true) {
+                        clearInterval(checkInterval);
+                        const intervalIndex = wheelCheckIntervals.indexOf(checkInterval);
+                        if (intervalIndex > -1) {
+                            wheelCheckIntervals.splice(intervalIndex, 1);
                         }
-                    });
-                }, 1000);
+                        
+                        // 즉시 종료하고 최종 위치 처리
+                        wheelInner.classList.remove('spinning');
+                        wheelInner.style.transition = 'none';
+                        wheelInner.style.transform = `translateY(${animationFinalPosition}px)`;
+                        wheelInner.style.visibility = 'visible';
+                        wheelInner.style.opacity = '1';
+                        
+                        // 즉시 최종 위치 처리
+                        setTimeout(() => {
+                            processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback);
+                        }, 50);
+                        return;
+                    }
+                    
+                    // 최대 확인 횟수 제한 (애니메이션 시간의 2배)
+                    if (checkCount > (animationDuration / 100) * 2) {
+                        clearInterval(checkInterval);
+                        const intervalIndex = wheelCheckIntervals.indexOf(checkInterval);
+                        if (intervalIndex > -1) {
+                            wheelCheckIntervals.splice(intervalIndex, 1);
+                        }
+                    }
+                }, 100);
                 
                 // 체크 인터벌을 전역 배열에 저장 (초기화 시 정리용)
                 wheelCheckIntervals.push(checkInterval);
@@ -1396,163 +1618,18 @@ function spinWheelsRandom(randomScrollValues, callback) {
                     if (intervalIndex > -1) {
                         wheelCheckIntervals.splice(intervalIndex, 1);
                     }
+                    
+                    // 이 룰렛의 애니메이션이 완전히 종료된 후 최종 위치 처리
+                    // 이미 완료되지 않은 경우에만 처리
+                    setTimeout(() => {
+                        if (wheelCompletionFlags[index] !== true) {
+                            processWheelCompletion(wheelNum, index, animationDuration, finalDigits, wheelCompletionFlags, callback);
+                        }
+                    }, animationDuration + 100); // 전체 애니메이션 시간 + 여유 시간
                 }, animationDuration + 100); // 여유 시간 추가
             }
         }, index * 100);
     });
-    
-        // 모든 룰렛이 멈춘 후 화살표 위치의 숫자 읽기
-        // 각 룰렛의 최대 애니메이션 시간을 계산하여 모든 룰렛이 완료될 때까지 대기
-        const maxAnimationDuration = Math.max(...animationDurations);
-        const totalAnimationTime = maxAnimationDuration + 500; // 여유 시간 추가
-        setTimeout(() => {
-        wheels.forEach((wheelNum, index) => {
-            const wheelInner = document.getElementById(`wheelInner${wheelNum}`);
-            const availableDigits = index === 0 ? lotteryDigits.hundreds : 
-                                    index === 1 ? lotteryDigits.tens : lotteryDigits.ones;
-            
-            wheelInner.classList.remove('spinning');
-            wheelInner.classList.remove('spinning-slow');
-            
-            // 최종 위치를 정확히 조정하여 순환 처리 확보
-            const digitCount = availableDigits.length;
-            const oneCycle = digitCount * itemHeight;
-            const wheelHeight = 200;
-            const centerY = wheelHeight / 2;
-            
-            // 현재 transform 위치 가져오기
-            const currentTransform = window.getComputedStyle(wheelInner).transform;
-            let finalY = 0;
-            if (currentTransform && currentTransform !== 'none') {
-                const matrix = currentTransform.match(/matrix.*\((.+)\)/);
-                if (matrix && matrix[1]) {
-                    const values = matrix[1].split(',');
-                    if (values.length >= 6) {
-                        finalY = parseFloat(values[5]) || 0;
-                    }
-                }
-            }
-            
-            // 콘솔 로그: 최종 위치 확인
-            console.log(`[룰렛 ${wheelNum}] 애니메이션 완료, 최종 위치 계산 시작:`, {
-                현재위치: finalY,
-                한바퀴거리: oneCycle,
-                자릿수개수: digitCount
-            });
-            
-            // 애니메이션 완료 후 최종 위치를 순환 처리하여 보이는 범위로 조정
-            const maxRepeatCount = 200; // 랜덤값의 2배 범위 (100 * 2 = 200)
-            const topPaddingSets = Math.ceil(maxRepeatCount / digitCount / 2);
-            const paddingItemsCount = topPaddingSets * digitCount;
-            const centerItemIndex = paddingItemsCount;
-            const centerItemCenter = (centerItemIndex * itemHeight) + (itemHeight / 2);
-            const centerOffset = centerY - centerItemCenter;
-            const initialPosition = centerOffset;
-            
-            // 애니메이션 종료 위치에서 초기 위치까지의 거리 계산
-            const distanceFromInitial = initialPosition - finalY;
-            
-            // 순환 처리: 거리를 한 바퀴로 나눈 나머지 (양수로 변환)
-            const normalizedDistance = ((distanceFromInitial % oneCycle) + oneCycle) % oneCycle;
-            
-            // 정규화된 거리를 사용하여 정확한 숫자 인덱스 계산
-            const digitIndex = Math.round(normalizedDistance / itemHeight) % digitCount;
-            const finalDigit = availableDigits[digitIndex];
-            
-            // 최종 위치 재계산 (순환 처리된 위치 - 정확히 해당 숫자가 중앙에 오도록)
-            const finalNormalizedPosition = initialPosition - (digitIndex * itemHeight);
-            
-            console.log(`[룰렛 ${wheelNum}] 순환 처리 결과:`, {
-                애니메이션종료위치: finalY,
-                초기위치: initialPosition,
-                거리: distanceFromInitial,
-                정규화거리: normalizedDistance,
-                숫자인덱스: digitIndex,
-                최종숫자: finalDigit,
-                정규화최종위치: finalNormalizedPosition
-            });
-            
-            // 정확한 위치로 재조정 (transition 없이 즉시) - 보이는 범위로 이동
-            wheelInner.style.transition = 'none';
-            wheelInner.style.transform = `translateY(${finalNormalizedPosition}px)`;
-            wheelInner.style.visibility = 'visible';
-            wheelInner.style.opacity = '1';
-            
-            // 강제 리플로우
-            void wheelInner.offsetHeight;
-            
-            // 최종 숫자 저장 (순환 처리된 숫자 사용)
-            finalDigits[index] = finalDigit;
-            
-            console.log(`[룰렛 ${wheelNum}] 최종 위치 설정 완료:`, {
-                최종숫자: finalDigit,
-                최종위치: finalNormalizedPosition,
-                transform: wheelInner.style.transform
-            });
-            
-            // 화살표 위치(중앙)에 있는 숫자 찾기 (검증용)
-            const wheelRect = wheelInner.parentElement.getBoundingClientRect();
-            const visualCenterY = wheelRect.top + wheelRect.height / 2;
-            
-            const items = wheelInner.querySelectorAll('.wheel-item');
-            let closestItem = null;
-            let closestDistance = Infinity;
-            
-            items.forEach(item => {
-                const rect = item.getBoundingClientRect();
-                const itemCenterY = rect.top + rect.height / 2;
-                const distance = Math.abs(itemCenterY - visualCenterY);
-                
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestItem = item;
-                }
-            });
-            
-            // 선택된 숫자 강조 및 반전 효과
-            setTimeout(() => {
-                // 모든 항목에서 selected 클래스 제거 및 스타일 초기화
-                wheelInner.querySelectorAll('.wheel-item').forEach(item => {
-                    item.classList.remove('selected');
-                    item.style.background = '';
-                    item.style.color = '';
-                    item.style.opacity = '';
-                });
-                
-                // 순환 처리된 숫자의 모든 항목 찾기
-                const sameDigitItems = wheelInner.querySelectorAll(`.wheel-item[data-digit="${finalDigit}"]`);
-                let selectedItem = null;
-                let minDistance = Infinity;
-                
-                sameDigitItems.forEach(item => {
-                    const rect = item.getBoundingClientRect();
-                    const itemCenterY = rect.top + rect.height / 2;
-                    const distance = Math.abs(itemCenterY - visualCenterY);
-                    
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        selectedItem = item;
-                    }
-                });
-                
-                if (selectedItem) {
-                    selectedItem.classList.add('selected');
-                    
-                    // 같은 숫자의 다른 항목도 약간 투명하게
-                    sameDigitItems.forEach(item => {
-                        if (item !== selectedItem) {
-                            item.style.opacity = '0.6';
-                        }
-                    });
-                }
-            }, 100);
-        });
-        
-        // 모든 룰렛이 멈춘 후 콜백 실행 (최종 숫자 전달)
-        // 두 단계 애니메이션을 고려하여 총 시간 사용
-        console.log(`[추첨 완료] 모든 룰렛 회전 완료, 최종 숫자:`, finalDigits);
-        if (callback) callback(finalDigits);
-    }, totalAnimationTime + 200);
 }
 
 // 룰렛 회전 애니메이션 (기존 - 사용하지 않음)
@@ -1798,7 +1875,6 @@ async function loadPrizeEligible() {
             }
         }
     } catch (error) {
-        console.error('추첨 자격자 목록 로드 오류:', error);
         const tbody = document.getElementById('prizeEligibleTableBody');
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
     }
@@ -1832,7 +1908,6 @@ async function loadPrizeClaims() {
             }
         }
     } catch (error) {
-        console.error('추첨 자격자 목록 로드 오류:', error);
         const tbody = document.getElementById('prizesTableBody');
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
     }

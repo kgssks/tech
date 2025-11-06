@@ -104,8 +104,41 @@ async function handleRegistrationSubmit(e) {
     }
 }
 
-// 참가신청 버튼 타이틀 업데이트
-function updateRegistrationButtonTitle() {
+// 참가신청 버튼 타이틀 업데이트 및 히어로 섹션 환영 메시지 표시
+async function updateRegistrationButtonTitle() {
+    // 인증 상태 확인
+    const user = typeof checkAuth === 'function' ? await checkAuth() : null;
+    
+    // 히어로 섹션 버튼 및 환영 메시지 업데이트
+    const heroButton = document.getElementById('heroRegisterButton');
+    const heroWelcomeMessage = document.getElementById('heroWelcomeMessage');
+    const heroWelcomeName = document.getElementById('heroWelcomeName');
+    
+    if (user) {
+        // 인증된 상태: 버튼 숨기고 환영 메시지 표시
+        if (heroButton) {
+            heroButton.style.display = 'none';
+        }
+        if (heroWelcomeMessage && heroWelcomeName) {
+            heroWelcomeName.textContent = user.empname || '참가자';
+            heroWelcomeMessage.style.display = 'block';
+        }
+    } else {
+        // 미인증 상태: 환영 메시지 숨기고 버튼 표시
+        if (heroWelcomeMessage) {
+            heroWelcomeMessage.style.display = 'none';
+        }
+        if (heroButton) {
+            // 인라인 스타일 제거하여 CSS의 inline-block이 적용되도록 함
+            heroButton.style.display = '';
+            if (typeof hasLoginHistory === 'function' && hasLoginHistory()) {
+                heroButton.textContent = '참가신청/로그인';
+            } else {
+                heroButton.textContent = '참가신청';
+            }
+        }
+    }
+    
     // 폼 제출 버튼 업데이트
     const registrationForm = document.getElementById('registrationForm');
     if (registrationForm) {
@@ -117,16 +150,6 @@ function updateRegistrationButtonTitle() {
             } else {
                 submitButton.textContent = '참가신청';
             }
-        }
-    }
-    
-    // Hero 섹션 버튼 업데이트
-    const heroButton = document.getElementById('heroRegisterButton');
-    if (heroButton) {
-        if (typeof hasLoginHistory === 'function' && hasLoginHistory()) {
-            heroButton.textContent = '참가신청/로그인';
-        } else {
-            heroButton.textContent = '참가신청';
         }
     }
     

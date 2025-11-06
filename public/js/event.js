@@ -39,6 +39,16 @@ window.submitQRScan = async function(encryptedData) {
 // 페이지 로드 시 초기화 및 인증 확인
 document.addEventListener('DOMContentLoaded', async () => {
     const authCheckMessage = document.getElementById('authCheckMessage');
+    const authCompletedMessage = document.getElementById('authCompletedMessage');
+    
+    // URL 파라미터에서 인증 완료 플래그 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const authCompleted = urlParams.get('authCompleted') === 'true';
+    
+    // 인증 완료 플래그가 있으면 URL에서 제거 (재방문 시 중복 표시 방지)
+    if (authCompleted) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
     
     // 먼저 인증 확인
     const token = getToken();
@@ -72,6 +82,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (authCheckMessage) {
         authCheckMessage.style.display = 'none';
     }
+    
+    // 인증 완료 후 접근한 경우 안내 메시지 표시
+    if (authCompleted && authCompletedMessage) {
+        authCompletedMessage.style.display = 'block';
+        
+        // 10초 후 자동으로 메시지 숨김 (선택사항)
+        setTimeout(() => {
+            if (authCompletedMessage) {
+                authCompletedMessage.style.transition = 'opacity 0.5s ease';
+                authCompletedMessage.style.opacity = '0';
+                setTimeout(() => {
+                    authCompletedMessage.style.display = 'none';
+                }, 500);
+            }
+        }, 10000);
+    }
 
     // 인증된 사용자만 데이터 로드
     await loadUserData();
@@ -84,6 +110,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function displayParticipantInfo() {
     const user = await checkAuth();
     const participantInfoSection = document.getElementById('participantInfo');
+    const adminNavItem = document.getElementById('adminNavItem');
+    
+    // 관리자 토큰이 있으면 관리자 링크 표시
+    if (adminNavItem && typeof getAdminToken === 'function') {
+        const adminToken = getAdminToken();
+        if (adminToken) {
+            adminNavItem.style.display = 'block';
+        } else {
+            adminNavItem.style.display = 'none';
+        }
+    }
     const eventUserName = document.getElementById('eventUserName');
     const eventUserDept = document.getElementById('eventUserDept');
     
