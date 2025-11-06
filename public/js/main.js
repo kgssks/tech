@@ -399,6 +399,8 @@ function scrollToSectionWithOffset(element) {
 if (typeof window !== 'undefined') {
     window.goToEvent = goToEvent;
     window.scrollToRegistration = scrollToRegistration;
+    window.showModal = showModal;
+    window.showConfirmModal = showConfirmModal;
 }
 
 // 메시지 표시
@@ -416,4 +418,150 @@ function showMessage(container, message, type, autoHideDelay = null) {
         }, delay);
     }
 }
+
+// Bootstrap 모달 유틸리티 함수
+function showModal(title, message, onClose = null) {
+    // 모달이 없으면 생성
+    let modal = document.getElementById('commonModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'commonModal';
+        modal.className = 'modal fade';
+        modal.setAttribute('tabindex', '-1');
+        modal.setAttribute('aria-labelledby', 'commonModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="commonModalLabel">${title}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="commonModalMessage">${message}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="commonModalCloseBtn" data-bs-dismiss="modal">확인</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        document.getElementById('commonModalLabel').textContent = title;
+        document.getElementById('commonModalMessage').textContent = message;
+    }
+    
+    const bsModal = new bootstrap.Modal(modal);
+    
+    // 이벤트 리스너 추가 (once: true로 한 번만 실행)
+    if (onClose && typeof onClose === 'function') {
+        modal.addEventListener('hidden.bs.modal', () => {
+            onClose();
+        }, { once: true });
+    }
+    
+    bsModal.show();
+}
+
+// 확인 모달 (confirm 대체)
+function showConfirmModal(title, message, onConfirm, onCancel = null) {
+    let modal = document.getElementById('confirmModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'confirmModal';
+        modal.className = 'modal fade';
+        modal.setAttribute('tabindex', '-1');
+        modal.setAttribute('aria-labelledby', 'confirmModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="confirmModalLabel">${title}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="confirmModalMessage">${message}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="confirmModalCancelBtn" data-bs-dismiss="modal">취소</button>
+                        <button type="button" class="btn btn-primary" id="confirmModalConfirmBtn">확인</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        document.getElementById('confirmModalLabel').textContent = title;
+        document.getElementById('confirmModalMessage').textContent = message;
+    }
+    
+    // 기존 이벤트 리스너 제거
+    const confirmBtn = document.getElementById('confirmModalConfirmBtn');
+    const cancelBtn = document.getElementById('confirmModalCancelBtn');
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    
+    const bsModal = new bootstrap.Modal(modal);
+    
+    newConfirmBtn.addEventListener('click', () => {
+        bsModal.hide();
+        if (onConfirm) onConfirm();
+    });
+    
+    if (onCancel) {
+        newCancelBtn.addEventListener('click', () => {
+            bsModal.hide();
+            onCancel();
+        });
+    }
+    
+    bsModal.show();
+}
+
+// YouTube 시청 버튼 클릭 처리
+async function handleYouTubeWatch() {
+    const btn = document.getElementById('youtubeWatchBtn');
+    if (!btn) return;
+    
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 확인 중...';
+    
+    try {
+        const response = await fetch('/api/config/check-event-time');
+        const data = await response.json();
+        
+        if (data.success && data.canAccess) {
+            // 접근 가능: YouTube 링크로 이동
+            window.open('https://www.youtube.com/watch?v=tech20251128', '_blank', 'noopener,noreferrer');
+        } else {
+            // 접근 불가: 모달 표시
+            const modal = document.getElementById('youtubeAccessModal');
+            const messageEl = document.getElementById('youtubeAccessMessage');
+            if (messageEl) {
+                messageEl.textContent = data.message || '행사 생중계 시간이 아닙니다. 일정을 확인 하시고 다시 접속 해 주세요';
+            }
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+        }
+    } catch (error) {
+        console.error('YouTube 접근 확인 오류:', error);
+        showModal('오류', '서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// YouTube 버튼 이벤트 리스너 등록
+document.addEventListener('DOMContentLoaded', () => {
+    const youtubeBtn = document.getElementById('youtubeWatchBtn');
+    if (youtubeBtn) {
+        youtubeBtn.addEventListener('click', handleYouTubeWatch);
+    }
+});
 

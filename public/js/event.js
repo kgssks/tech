@@ -22,17 +22,33 @@ window.submitQRScan = async function(encryptedData) {
         
         if (data.success) {
             if (data.alreadyParticipated) {
-                alert('이미 참여한 부스입니다.');
+                if (typeof showModal === 'function') {
+                    showModal('알림', '이미 참여한 부스입니다.');
+                } else {
+                    alert('이미 참여한 부스입니다.');
+                }
             } else {
-                alert('부스 참여가 완료되었습니다!');
+                if (typeof showModal === 'function') {
+                    showModal('성공', '부스 참여가 완료되었습니다!');
+                } else {
+                    alert('부스 참여가 완료되었습니다!');
+                }
                 loadParticipationStatus();
             }
         } else {
-            alert(data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+            } else {
+                alert(data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+            }
         }
     } catch (error) {
         console.error('QR 스캔 오류:', error);
-        alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+        if (typeof showModal === 'function') {
+            showModal('오류', '네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+        } else {
+            alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+        }
     }
 };
 
@@ -72,8 +88,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             authCheckMessage.textContent = '인증이 만료되었습니다. 잠시 후 인증 페이지로 이동합니다...';
         }
         setTimeout(() => {
-            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-            window.location.href = '/app/event/auth.html';
+            if (typeof showModal === 'function') {
+                showModal('인증 만료', '인증이 만료되었습니다. 다시 로그인해주세요.', () => {
+                    window.location.href = '/app/event/auth.html';
+                });
+            } else {
+                alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+                window.location.href = '/app/event/auth.html';
+            }
         }, 1500);
         return;
     }
@@ -155,14 +177,28 @@ async function loadUserData() {
         } else {
             // 인증 실패 시 토큰 삭제하고 인증 페이지로 이동
             removeToken();
-            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-            window.location.href = '/app/event/auth.html';
+            if (typeof showModal === 'function') {
+                showModal('인증 만료', '인증이 만료되었습니다. 다시 로그인해주세요.');
+                setTimeout(() => {
+                    window.location.href = '/app/event/auth.html';
+                }, 2000);
+            } else {
+                alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+                window.location.href = '/app/event/auth.html';
+            }
         }
     } catch (error) {
         console.error('사용자 데이터 로드 오류:', error);
         removeToken();
-        alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
-        window.location.href = '/app/event/auth.html';
+        if (typeof showModal === 'function') {
+            showModal('오류', '네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+            setTimeout(() => {
+                window.location.href = '/app/event/auth.html';
+            }, 2000);
+        } else {
+            alert('네트워크 오류가 발생했습니다. 다시 시도해주세요.');
+            window.location.href = '/app/event/auth.html';
+        }
     }
 }
 
@@ -280,7 +316,11 @@ async function startMobileQRScan() {
     const qrResultsDiv = document.getElementById('qr-reader-results');
     
     if (!qrReaderDiv) {
-        alert('QR 스캔 영역을 찾을 수 없습니다.');
+        if (typeof showModal === 'function') {
+            showModal('오류', 'QR 스캔 영역을 찾을 수 없습니다.');
+        } else {
+            alert('QR 스캔 영역을 찾을 수 없습니다.');
+        }
         return;
     }
     
@@ -392,7 +432,20 @@ async function startMobileQRScan() {
         
         // 폴백: 수동 입력
         setTimeout(() => {
-            if (confirm('카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?')) {
+            if (typeof showConfirmModal === 'function') {
+                showConfirmModal(
+                    '카메라 사용 불가',
+                    '카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?',
+                    () => {
+                        stopQRScan();
+                        modal.hide();
+                        manualQRInput();
+                    },
+                    () => {
+                        modal.hide();
+                    }
+                );
+            } else if (confirm('카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?')) {
                 stopQRScan();
                 modal.hide();
                 manualQRInput();
@@ -442,7 +495,11 @@ function manualQRInput() {
         const encryptedData = urlParams.get('data');
 
         if (!encryptedData) {
-            alert('유효하지 않은 QR 코드입니다.');
+            if (typeof showModal === 'function') {
+                showModal('오류', '유효하지 않은 QR 코드입니다.');
+            } else {
+                alert('유효하지 않은 QR 코드입니다.');
+            }
             return;
         }
 

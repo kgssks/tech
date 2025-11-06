@@ -273,6 +273,43 @@ section {
     color: var(--kb-dark);
 }
 
+/* Break time 항목을 서브 카드로 스타일링 */
+.schedule-item-break {
+    padding: 0.5rem 1rem !important;
+    margin-top: -0.5rem !important;
+    margin-bottom: 1rem !important;
+    margin-left: 2rem !important;
+    margin-right: 0 !important;
+    background: #f8f9fa !important;
+    border-left: 3px solid var(--kb-primary);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+}
+
+.schedule-item-break .schedule-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.schedule-item-break .schedule-content h4 {
+    margin-bottom: 0;
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.schedule-item-break .schedule-content p {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--kb-gray);
+}
+
+.schedule-item-break .schedule-time {
+    min-width: 100px;
+    font-size: 0.9rem;
+}
+
 .youtube-section {
     margin-top: 3rem;
     text-align: center;

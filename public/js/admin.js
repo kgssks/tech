@@ -121,9 +121,31 @@ async function generateTestData() {
     if (!btn || !resultDiv) return;
     
     // 확인
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '테스트 데이터 생성',
+            '가상 사용자 150명을 생성하시겠습니까?\n기존 사용자와 중복되지 않도록 생성됩니다.',
+            () => {
+                proceedGenerateTestData();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
     if (!confirm('가상 사용자 150명을 생성하시겠습니까?\n기존 사용자와 중복되지 않도록 생성됩니다.')) {
         return;
     }
+    
+    proceedGenerateTestData();
+}
+
+// 테스트 데이터 생성 실행 함수
+async function proceedGenerateTestData() {
+    const btn = document.getElementById('generateTestDataBtn');
+    const resultDiv = document.getElementById('testDataResult');
     
     btn.disabled = true;
     btn.textContent = '생성 중...';
@@ -401,7 +423,11 @@ async function generateBoothQR(boothCode) {
         }
     } catch (error) {
         console.error('QR 생성 오류:', error);
-        alert('QR 코드 생성 중 오류가 발생했습니다.');
+        if (typeof showModal === 'function') {
+            showModal('오류', 'QR 코드 생성 중 오류가 발생했습니다.');
+        } else {
+            alert('QR 코드 생성 중 오류가 발생했습니다.');
+        }
     }
 }
 
@@ -518,11 +544,19 @@ async function generateSurveyQR() {
             const qrDiv = document.getElementById('surveyQRDisplay');
             qrDiv.innerHTML = `<img src="${data.qrImage}" alt="통합설문 QR" style="max-width: 300px;"><p style="margin-top: 0.5rem; font-size: 0.9rem; word-break: break-all;">${data.surveyUrl}</p>`;
         } else {
-            alert(data.message || 'QR 코드 생성 중 오류가 발생했습니다.');
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || 'QR 코드 생성 중 오류가 발생했습니다.');
+            } else {
+                alert(data.message || 'QR 코드 생성 중 오류가 발생했습니다.');
+            }
         }
     } catch (error) {
         console.error('통합설문 QR 생성 오류:', error);
-        alert('통합설문 QR 코드 생성 중 오류가 발생했습니다.');
+        if (typeof showModal === 'function') {
+            showModal('오류', '통합설문 QR 코드 생성 중 오류가 발생했습니다.');
+        } else {
+            alert('통합설문 QR 코드 생성 중 오류가 발생했습니다.');
+        }
     }
 }
 
@@ -623,7 +657,20 @@ async function startAdminMobileQRScan() {
         
         // 폴백: 수동 입력
         setTimeout(() => {
-            if (confirm('카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?')) {
+            if (typeof showConfirmModal === 'function') {
+                showConfirmModal(
+                    '카메라 사용 불가',
+                    '카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?',
+                    () => {
+                        stopAdminQRScan();
+                        modal.hide();
+                        manualPrizeQRInput();
+                    },
+                    () => {
+                        modal.hide();
+                    }
+                );
+            } else if (confirm('카메라를 사용할 수 없습니다. 수동 입력으로 진행하시겠습니까?')) {
                 stopAdminQRScan();
                 modal.hide();
                 manualPrizeQRInput();

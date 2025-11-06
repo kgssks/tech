@@ -178,8 +178,15 @@ async function protectRoute() {
         const user = await checkAuth();
         if (!user) {
             removeToken();
-            alert('인증이 만료되었습니다. 다시 로그인해주세요.');
-            window.location.href = '/app/event/auth.html';
+            if (typeof showModal === 'function') {
+                showModal('인증 만료', '인증이 만료되었습니다. 다시 로그인해주세요.');
+                setTimeout(() => {
+                    window.location.href = '/app/event/auth.html';
+                }, 2000);
+            } else {
+                alert('인증이 만료되었습니다. 다시 로그인해주세요.');
+                window.location.href = '/app/event/auth.html';
+            }
             return false;
         }
     }

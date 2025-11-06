@@ -105,7 +105,7 @@
                         <p>KB AI Agent 개발사례 등 3개 (45분)</p>
                     </div>
                 </div>
-                <div class="schedule-item">
+                <div class="schedule-item schedule-item-break">
                     <div class="schedule-time">14:55 ~ 15:10</div>
                     <div class="schedule-content">
                         <h4>Break time</h4>
@@ -119,7 +119,7 @@
                         <p>파트너사 3사 : KB와의 협업사례 (45분)</p>
                     </div>
                 </div>
-                <div class="schedule-item">
+                <div class="schedule-item schedule-item-break">
                     <div class="schedule-time">15:55 ~ 16:10</div>
                     <div class="schedule-content">
                         <h4>Break time</h4>
@@ -144,13 +144,12 @@
             <div class="youtube-section">
                 <h3>행사 중계</h3>
                 <div class="youtube-link-container">
-                    <a href="https://www.youtube.com/watch?v=tech20251128" 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       class="btn btn-primary btn-lg youtube-link-btn">
+                    <button type="button" 
+                       class="btn btn-primary btn-lg youtube-link-btn"
+                       id="youtubeWatchBtn">
                         <span class="youtube-icon">▶</span>
                         YouTube에서 시청하기
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -365,6 +364,24 @@
             <p>&copy; 2025 KB금융 테크그룹. All rights reserved.</p>
         </div>
     </footer>
+
+    <!-- YouTube 시청 안내 모달 -->
+    <div class="modal fade" id="youtubeAccessModal" tabindex="-1" aria-labelledby="youtubeAccessModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="youtubeAccessModalLabel">행사 중계 안내</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="youtubeAccessMessage">행사 생중계 시간이 아닙니다. 일정을 확인 하시고 다시 접속 해 주세요</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">확인</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/config.js"></script>
