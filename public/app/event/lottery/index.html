@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>현장 참여 추첨번호 발급 | KB금융 AI 기술 테크포럼</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/fonts.css">
+</head>
+<body style="background: linear-gradient(135deg, rgba(255,188,0,0.15) 0%, #ffffff 70%); min-height: 100vh;">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="text-center mb-4">
+                            <img src="/asset/tech-forum-logo.png" alt="KB Tech Forum" style="height: 64px; object-fit: contain;">
+                            <h1 class="mt-3" style="font-family: 'KBFGDisplay', sans-serif; font-weight: 700; color: var(--kb-gray);">
+                                현장 참여 확인
+                            </h1>
+                            <p class="text-muted mb-0">행사 현장에 계신가요? 아래 버튼을 눌러 추첨번호를 발급받으세요.</p>
+                        </div>
+
+                        <div id="lotteryIssueAlert" class="alert alert-warning" role="alert" style="display: none;"></div>
+
+                        <div class="mb-4">
+                            <h2 class="h5 text-center">나의 추첨번호</h2>
+                            <div id="lotteryIssueResult" class="display-4 text-center" style="font-family: 'KBFGDisplay', sans-serif; color: var(--kb-primary);">
+                                확인 중...
+                            </div>
+                            <p id="lotteryIssueMessage" class="text-center text-muted mt-2" style="font-size: 0.95rem;">
+                                추첨번호를 아직 발급받지 않았다면 아래 버튼을 눌러 주세요.
+                            </p>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" id="lotteryIssueButton">
+                                추첨번호 발급받기
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" id="lotteryIssueRefresh">
+                                추첨번호 다시 확인하기
+                            </button>
+                        </div>
+
+                        <div class="mt-4 text-muted" style="font-size: 0.9rem;">
+                            <ul class="mb-0">
+                                <li>QR 코드를 스캔한 후 로그인한 사용자만 추첨번호를 발급받을 수 있습니다.</li>
+                                <li>이미 추첨번호를 받은 경우 동일한 번호가 안내됩니다.</li>
+                                <li>문제가 발생하면 현장 스태프에게 문의해주세요.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/lottery.js"></script>
+</body>
+</html>
+
+

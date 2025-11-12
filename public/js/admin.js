@@ -644,6 +644,59 @@ async function generateSurveyQR() {
     }
 }
 
+// 현장 참여 추첨번호 발급 QR
+async function generateLotteryIssueQR() {
+    const displayDiv = document.getElementById('lotteryIssueQRDisplay');
+    const validMinutesInput = document.getElementById('lotteryQrValidMinutes');
+
+    if (!displayDiv) return;
+
+    const adminToken = localStorage.getItem('adminToken');
+    if (!adminToken) {
+        displayDiv.innerHTML = '<div class="alert alert-danger">관리자 로그인이 필요합니다.</div>';
+        return;
+    }
+
+    let validMinutes = parseInt(validMinutesInput?.value, 10);
+    if (isNaN(validMinutes) || validMinutes <= 0) {
+        validMinutes = undefined;
+    }
+
+    displayDiv.innerHTML = '<p>QR 코드를 생성중입니다...</p>';
+
+    try {
+        const response = await fetch('/api/lottery/generate-qr', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminToken}`,
+                'kb-auth': `Bearer ${adminToken}`
+            },
+            body: JSON.stringify(validMinutes ? { validMinutes } : {})
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const expiresText = data.payload?.expiresAt
+                ? new Date(data.payload.expiresAt).toLocaleString('ko-KR')
+                : '미지정';
+
+            displayDiv.innerHTML = `
+                <img src="${data.qrImage}" alt="현장 참여 QR" style="max-width: 280px; width: 100%; border: 1px solid #ddd; padding: 0.75rem; background: #fff;">
+                <p class="mt-2 mb-1"><strong>QR 링크:</strong></p>
+                <p style="word-break: break-all; font-size: 0.9rem;">${data.qrUrl}</p>
+                <p class="text-muted" style="font-size: 0.9rem;">유효 종료: ${expiresText}</p>
+            `;
+        } else {
+            displayDiv.innerHTML = `<div class="alert alert-danger">${data.message || 'QR 생성에 실패했습니다.'}</div>`;
+        }
+    } catch (error) {
+        console.error('현장 참여 QR 생성 오류:', error);
+        displayDiv.innerHTML = '<div class="alert alert-danger">QR 생성 중 오류가 발생했습니다.</div>';
+    }
+}
+
 // 경품 지급용 QR 스캔 모달 관련 변수
 let adminQRScanner = null;
 let adminQRScannerModal = null;
@@ -1158,6 +1211,115 @@ async function drawLottery() {
         resultDiv.innerHTML = '<div class="alert alert-error">추첨 중 오류가 발생했습니다.</div>';
         drawBtn.disabled = false;
         drawBtn.textContent = '추첨하기';
+    }
+}
+
+// 다중 경품 추첨 (예: 에어태그 10명)
+async function drawBulkLottery(count = 10) {
+    const drawBtn = document.getElementById('drawBulkLotteryBtn');
+    const resultContainer = document.getElementById('bulkLotteryResult');
+    const summaryEl = document.getElementById('bulkLotterySummary');
+    
+    if (!drawBtn || !resultContainer) {
+        return;
+    }
+    
+    const requestedCount = Math.max(1, parseInt(count, 10) || 1);
+    const originalLabel = drawBtn.textContent;
+    let reenableTimeout = null;
+    
+    drawBtn.disabled = true;
+    drawBtn.textContent = '추첨 준비 중...';
+    resultContainer.innerHTML = '<div class="bulk-lottery-status">추첨 번호를 계산하고 있습니다...</div>';
+    if (summaryEl) {
+        summaryEl.style.display = 'none';
+        summaryEl.textContent = '';
+    }
+    
+    try {
+        const response = await fetch('/api/prize/draw-bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ count: requestedCount })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            resultContainer.innerHTML = `<div class="bulk-lottery-status text-danger">${data.message || '추첨 중 오류가 발생했습니다.'}</div>`;
+            return;
+        }
+        
+        const winners = data.winners || [];
+        const availableCount = data.availableCount || 0;
+        
+        if (winners.length === 0) {
+            const message = availableCount === 0
+                ? '현재 추첨 가능한 대상자가 없습니다.'
+                : '조건에 맞는 추첨 대상자를 찾을 수 없습니다.';
+            resultContainer.innerHTML = `<div class="bulk-lottery-status">${message}</div>`;
+            if (summaryEl) {
+                summaryEl.style.display = 'none';
+                summaryEl.textContent = '';
+            }
+            return;
+        }
+        
+        resultContainer.innerHTML = '';
+        const requestedText = data.requestedCount && data.requestedCount !== winners.length
+            ? ` (요청 ${data.requestedCount}명)`
+            : '';
+        if (summaryEl) {
+            summaryEl.innerHTML = `<strong>${winners.length}</strong>명 추첨 완료${requestedText} · 대상자 ${availableCount}명`;
+            summaryEl.style.display = 'block';
+        }
+        
+        const revealDelay = 600;
+        winners.forEach((winner, index) => {
+            const item = document.createElement('div');
+            item.className = 'bulk-lottery-item';
+            
+            const numberStr = String(winner.lottery_number).padStart(3, '0');
+            const empName = winner.empname || '미확인';
+            const dept = winner.deptname || '-';
+            const pos = winner.posname || '';
+            const empno = winner.empno || '-';
+            
+            item.innerHTML = `
+                <div class="bulk-lottery-number">${numberStr}</div>
+                <div class="bulk-lottery-meta">
+                    <strong>${empName}</strong>
+                    <span>${dept} ${pos}</span>
+                    <span>사번 ${empno}</span>
+                </div>
+            `;
+            
+            // 초기에는 보이지 않도록 하고, 순차적으로 show 클래스 부여
+            resultContainer.appendChild(item);
+            setTimeout(() => {
+                item.classList.add('show');
+            }, index * revealDelay);
+        });
+        
+        const totalDelay = (winners.length - 1) * revealDelay + 800;
+        reenableTimeout = setTimeout(() => {
+            drawBtn.disabled = false;
+            drawBtn.textContent = originalLabel;
+        }, totalDelay);
+    } catch (error) {
+        console.error('다중 추첨 오류:', error);
+        resultContainer.innerHTML = '<div class="bulk-lottery-status text-danger">추첨 중 오류가 발생했습니다. 다시 시도해주세요.</div>';
+        if (summaryEl) {
+            summaryEl.style.display = 'none';
+            summaryEl.textContent = '';
+        }
+    } finally {
+        if (!reenableTimeout) {
+            drawBtn.disabled = false;
+            drawBtn.textContent = originalLabel;
+        }
     }
 }
 

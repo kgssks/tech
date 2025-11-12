@@ -175,33 +175,6 @@ router.post('/login', async (req, res) => {
                     userId 
                   });
                   
-                  // 기존 사용자는 추첨 번호를 이미 가지고 있으므로 추가로 부여하지 않음
-                  // 추첨 번호가 없을 가능성은 거의 없지만, 확인만 하고 로그만 남김
-                  // user_id에 UNIQUE 제약이 있으므로 중복 방지됨
-                  db.get('SELECT lottery_number FROM lottery_numbers WHERE user_id = ?', 
-                    [userId], (err, existingLottery) => {
-                    if (err) {
-                      log.error('추첨 번호 조회 오류', { err, userId });
-                    } else if (!existingLottery) {
-                      // 기존 사용자지만 추첨 번호가 없는 경우 (이전 데이터 마이그레이션 등)
-                      // INSERT OR IGNORE를 사용하여 중복 방지 및 안전하게 부여
-                      // user_id에 UNIQUE 제약이 있어서 중복 방지됨
-                      db.run('INSERT OR IGNORE INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
-                        [userId, userId], (err) => {
-                          if (err) {
-                            log.error('추첨 번호 부여 오류', { err, userId });
-                          } else {
-                            log.info('기존 사용자 추첨 번호 부여 완료 (누락된 경우)', { userId, lotteryNumber: userId });
-                          }
-                        });
-                    } else {
-                      log.debug('기존 사용자 추첨 번호 확인됨 - 추가 부여하지 않음', { 
-                        userId, 
-                        lotteryNumber: existingLottery.lottery_number 
-                      });
-                    }
-                  });
-
                   // 관리자 권한 확인 및 관리자 토큰 생성
                   const isAdmin = ADMIN_EMPNO_LIST.includes(empnoFromAPI);
                   
@@ -323,17 +296,6 @@ router.post('/login', async (req, res) => {
                     empname,
                     userId 
                   });
-
-                  // 신규 사용자: 추첨 번호 부여
-                  // INSERT OR IGNORE를 사용하여 중복 방지
-                  db.run('INSERT OR IGNORE INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
-                    [userId, userId], (err) => {
-                      if (err) {
-                        log.error('추첨 번호 부여 오류', { err, userId });
-                      } else {
-                        log.info('신규 사용자 추첨 번호 부여 완료', { userId, lotteryNumber: userId });
-                      }
-                    });
 
                   resolve(res.json({
                     success: true,

@@ -321,6 +321,88 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .bulk-lottery-controls {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .bulk-lottery-result {
+            margin-top: 1.5rem;
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        @media (max-width: 1400px) {
+            .bulk-lottery-result {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+        .bulk-lottery-summary {
+            text-align: center;
+            font-weight: 600;
+            color: var(--kb-dark);
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .bulk-lottery-item {
+            background: white;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 188, 0, 0.4);
+            box-shadow: 0 6px 15px rgba(10, 37, 64, 0.12);
+            padding: 1rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            min-height: 160px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s ease;
+        }
+        .bulk-lottery-item.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .bulk-lottery-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--kb-primary);
+            text-shadow: 0 0 12px rgba(255, 188, 0, 0.6);
+        }
+        .bulk-lottery-meta {
+            text-align: center;
+        }
+        .bulk-lottery-meta strong {
+            display: block;
+            font-size: 1.25rem;
+            color: var(--kb-dark);
+        }
+        .bulk-lottery-meta span {
+            display: block;
+            color: var(--kb-gray);
+            font-size: 0.95rem;
+        }
+        .bulk-lottery-meta span + span {
+            margin-top: 0.25rem;
+        }
+        .bulk-lottery-status {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 188, 0, 0.15);
+            border-radius: 8px;
+            color: var(--kb-gray);
+        }
+        .bulk-lottery-summary {
+            text-align: center;
+            font-weight: 600;
+            color: var(--kb-dark);
+        }
+        #drawBulkLotteryBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .digit-wheel {
             width: 80px;
             height: 120px;
@@ -504,6 +586,27 @@
                 <div id="surveyQRDisplay" class="qr-code-display mt-2"></div>
             </div>
 
+            <!-- 현장 참여 QR (추첨번호 발급) -->
+            <div class="qr-section">
+                <h3>현장 참여 QR (추첨번호 발급)</h3>
+                <p class="text-muted mb-3">
+                    행사 현장에서만 노출할 QR 코드입니다. 참가자가 해당 QR을 스캔하고 로그인하면 추첨번호가 발급됩니다.
+                    유효시간은 기본 12시간이며, 필요 시 아래 입력값(분 단위)으로 조정할 수 있습니다.
+                </p>
+                <div class="row g-2 align-items-center mb-2">
+                    <div class="col-sm-3 col-md-2">
+                        <label class="form-label mb-0" for="lotteryQrValidMinutes">유효시간(분)</label>
+                    </div>
+                    <div class="col-sm-3 col-md-2">
+                        <input type="number" class="form-control" id="lotteryQrValidMinutes" placeholder="720">
+                    </div>
+                    <div class="col-sm-6 col-md-4">
+                        <button class="btn btn-primary w-100" onclick="generateLotteryIssueQR()">현장 참여 QR 생성</button>
+                    </div>
+                </div>
+                <div id="lotteryIssueQRDisplay" class="qr-code-display mt-3"></div>
+            </div>
+
             <!-- 경품 추첨 -->
             <div class="lottery-section">
                 <h3>경품 추첨</h3>
@@ -565,6 +668,15 @@
                 
                 <button class="btn btn-primary btn-lg" id="drawLotteryBtn" onclick="drawLottery()">추첨하기</button>
                 <div id="lotteryResult" class="mt-4"></div>
+
+                <div class="bulk-lottery-controls">
+                    <button class="btn btn-outline-primary btn-lg" id="drawBulkLotteryBtn" onclick="drawBulkLottery(10)">
+                        10명 추첨 (에어태그 / 스마트태그)
+                    </button>
+                    <small class="text-muted">버튼 한 번으로 10명의 추첨번호를 순차적으로 공개합니다.</small>
+                </div>
+                <div id="bulkLotterySummary" class="bulk-lottery-summary" style="display: none;"></div>
+                <div id="bulkLotteryResult" class="bulk-lottery-result"></div>
             </div>
 
             <!-- 데이터 조회 탭 -->

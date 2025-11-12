@@ -40,6 +40,7 @@ app.use('/api/admin', require('./backend/routes/admin'));
 app.use('/api/booth', require('./backend/routes/booth'));
 app.use('/api/survey', require('./backend/routes/survey'));
 app.use('/api/prize', require('./backend/routes/prize'));
+app.use('/api/lottery', require('./backend/routes/lottery'));
 app.use('/api/logs', require('./backend/routes/logs'));
 
 // 정적 파일 서빙 (페이지 접속 로그 기록)
@@ -50,6 +51,10 @@ app.get('/', logPageAccess, (req, res) => {
 // 주요 페이지 접속 로그
 app.get('/app/event/', logPageAccess, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app', 'event', 'index.html'));
+});
+
+app.get('/app/event/lottery/', logPageAccess, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app', 'event', 'lottery', 'index.html'));
 });
 
 app.get('/app/event/auth', logPageAccess, (req, res) => {

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { getDB } = require('../database');
 
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
 // 경품 추첨 결과 확인 (프론트엔드에서 결정한 당첨번호 확인)
 router.post('/check-winner', (req, res) => {
   const db = getDB();
@@ -88,5 +96,69 @@ router.get('/lottery-digits', (req, res) => {
   });
 });
 
-module.exports = router;
+// 다중 경품 추첨 (여러 명을 한 번에 추첨)
+router.post('/draw-bulk', (req, res) => {
+  const db = getDB();
+  const { count } = req.body || {};
+  const drawCount = parseInt(count, 10);
 
+  if (!drawCount || drawCount < 1) {
+    return res.status(400).json({
+      success: false,
+      message: '추첨 인원을 올바르게 입력해주세요.'
+    });
+  }
+
+  // 추첨 대상자 조회 (QR 인증을 통해 추첨번호를 발급받은 모든 사용자)
+  const query = `
+    SELECT 
+      u.id AS user_id,
+      u.empno,
+      u.empname,
+      u.deptname,
+      u.posname,
+      ln.lottery_number
+    FROM lottery_numbers ln
+    JOIN users u ON ln.user_id = u.id
+    LEFT JOIN prize_claims pc ON pc.user_id = u.id
+    WHERE (u.deleted = 0 OR u.deleted IS NULL)
+      AND pc.id IS NULL
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('다중 경품 추첨 조회 오류:', err);
+      return res.status(500).json({
+        success: false,
+        message: '서버 오류가 발생했습니다.'
+      });
+    }
+
+    if (!rows || rows.length === 0) {
+      return res.json({
+        success: true,
+        requestedCount: drawCount,
+        availableCount: 0,
+        winners: []
+      });
+    }
+
+    const shuffled = shuffleArray([...rows]);
+    const winners = shuffled.slice(0, Math.min(drawCount, shuffled.length)).map(row => ({
+      lottery_number: row.lottery_number,
+      empname: row.empname,
+      empno: row.empno,
+      deptname: row.deptname,
+      posname: row.posname
+    }));
+
+    res.json({
+      success: true,
+      requestedCount: drawCount,
+      availableCount: rows.length,
+      winners
+    });
+  });
+});
+
+module.exports = router;
