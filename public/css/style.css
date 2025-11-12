@@ -274,6 +274,28 @@ section {
     color: var(--kb-dark);
 }
 
+.schedule-duration {
+    margin-bottom: 0.75rem;
+    color: var(--kb-dark);
+}
+
+.schedule-detail {
+    margin: 0 0 0 1.25rem;
+    padding: 0;
+    list-style: disc;
+    color: #555;
+}
+
+.schedule-detail li {
+    margin-bottom: 0.35rem;
+    line-height: 1.45;
+}
+
+.schedule-host {
+    color: var(--kb-blue);
+    font-weight: 600;
+}
+
 /* Break time 항목을 서브 카드로 스타일링 */
 .schedule-item-break {
     padding: 0.5rem 1rem !important;
