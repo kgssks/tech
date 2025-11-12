@@ -43,23 +43,50 @@ function showMessageBox(title, message) {
         box.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
         box.style.maxWidth = '90%';
         box.style.fontFamily = "KBFGText, 'Noto Sans KR', sans-serif";
+        box.style.transition = 'opacity 0.2s ease';
+        box.style.opacity = '0';
         document.body.appendChild(box);
     }
 
     box.innerHTML = `
-        <strong style="display:block; font-size:1.1rem; margin-bottom:0.5rem; color: var(--kb-primary);">
+        <button type="button" class="event-inline-close" aria-label="닫기" style="
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            border: none;
+            background: transparent;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--kb-gray);
+            cursor: pointer;
+        ">&times;</button>
+        <strong style="display:block; font-size:1.1rem; margin-bottom:0.5rem; color: var(--kb-primary); padding-right: 1.5rem;">
             ${title}
         </strong>
-        <span style="color: var(--kb-gray); font-size: 0.95rem; line-height: 1.5;">
+        <span style="color: var(--kb-gray); font-size: 0.95rem; line-height: 1.5; display:block; padding-right: 1.5rem;">
             ${message}
         </span>
     `;
     box.style.display = 'block';
+    requestAnimationFrame(() => {
+        box.style.opacity = '1';
+    });
+
+    const closeBtn = box.querySelector('.event-inline-close');
+    const hideBox = () => {
+        box.style.opacity = '0';
+        clearTimeout(box._hideTimer);
+        box._hideTimer = setTimeout(() => {
+            box.style.display = 'none';
+        }, 200);
+    };
+
+    if (closeBtn) {
+        closeBtn.onclick = hideBox;
+    }
 
     clearTimeout(box._hideTimer);
-    box._hideTimer = setTimeout(() => {
-        box.style.display = 'none';
-    }, 4000);
+    box._hideTimer = setTimeout(hideBox, 4000);
 }
 
 // GPS 정보 수집 함수
