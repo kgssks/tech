@@ -114,6 +114,11 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             transform: translateY(-5px);
         }
+        .prize-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
         .prize-placeholder {
             width: 150px;
             height: 150px;
@@ -225,7 +230,13 @@
         <div class="lottery-info">
             <h3>내 추첨 번호</h3>
             <p id="lotteryNumber" style="font-size: 2rem; font-weight: bold; color: var(--kb-primary);">-</p>
-            <button class="btn btn-outline-primary mt-3" onclick="showPrizeInfo()">추첨상품 안내</button>
+            <p id="lotteryNumberMessage" class="text-muted mb-0">현장 추첨 QR을 스캔하여 추첨번호를 발급받으세요.</p>
+            <div class="d-flex justify-content-center flex-wrap gap-2 mt-3">
+                <button class="btn btn-primary" id="lotteryIssueButton" onclick="scanLotteryQR()">
+                    추첨번호 발급
+                </button>
+                <button class="btn btn-outline-primary" onclick="showPrizeInfo()">추첨상품 안내</button>
+            </div>
         </div>
 
         <!-- 스탬프 영역 -->
@@ -288,43 +299,48 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-4">
-                        <!-- 1등 상품 -->
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="prize-card text-center">
                                 <div class="prize-image mb-3">
                                     <div class="prize-placeholder first-place">
                                         <i class="bi bi-tablet" style="font-size: 4rem; color: var(--kb-primary);"></i>
                                     </div>
                                 </div>
-                                <h4 class="prize-rank text-primary mb-2">1등</h4>
-                                <h5 class="prize-name mb-2">아이패드</h5>
+                                <h5 class="prize-name mb-2">애플 아이패드 (128GB / Wi-Fi)</h5>
                                 <p class="prize-count text-muted">추첨인원: <strong>1명</strong></p>
                             </div>
                         </div>
-                        <!-- 2등 상품 -->
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="prize-card text-center">
                                 <div class="prize-image mb-3">
                                     <div class="prize-placeholder second-place">
-                                        <i class="bi bi-earbuds" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                        <i class="bi bi-lightning-charge" style="font-size: 4rem; color: var(--kb-primary);"></i>
                                     </div>
                                 </div>
-                                <h4 class="prize-rank text-primary mb-2">2등</h4>
-                                <h5 class="prize-name mb-2">에어팟 프로</h5>
-                                <p class="prize-count text-muted">추첨인원: <strong>2명</strong></p>
+                                <h5 class="prize-name mb-2">벨킨 애플 충전기</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>1명</strong></p>
                             </div>
                         </div>
-                        <!-- 3등 상품 -->
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <div class="prize-card text-center">
                                 <div class="prize-image mb-3">
                                     <div class="prize-placeholder third-place">
-                                        <i class="bi bi-smartwatch" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                        <i class="bi bi-speaker" style="font-size: 4rem; color: var(--kb-primary);"></i>
                                     </div>
                                 </div>
-                                <h4 class="prize-rank text-primary mb-2">3등</h4>
-                                <h5 class="prize-name mb-2">갤럭시워치</h5>
-                                <p class="prize-count text-muted">추첨인원: <strong>5명</strong></p>
+                                <h5 class="prize-name mb-2">구글 네스트 오디오</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>1명</strong></p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="prize-card text-center">
+                                <div class="prize-image mb-3">
+                                    <div class="prize-placeholder third-place">
+                                        <i class="bi bi-geo-alt" style="font-size: 4rem; color: var(--kb-primary);"></i>
+                                    </div>
+                                </div>
+                                <h5 class="prize-name mb-2">애플 에어태그 또는 갤럭시 스마트태그</h5>
+                                <p class="prize-count text-muted">추첨인원: <strong>10명</strong></p>
                             </div>
                         </div>
                     </div>

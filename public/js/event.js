@@ -1,6 +1,7 @@
 
 let ws = null;
 let userId = null;
+let currentQRScanMode = 'booth';
 
 // GPS 정보 수집 함수
 function getGPSLocation() {
@@ -165,6 +166,24 @@ window.submitQRScan = async function(encryptedData) {
         }
     }
 };
+
+function setLotteryDisplay(number, message, showButton) {
+    const numberEl = document.getElementById('lotteryNumber');
+    const messageEl = document.getElementById('lotteryNumberMessage');
+    const issueBtn = document.getElementById('lotteryIssueButton');
+
+    if (numberEl) {
+        numberEl.textContent = number !== null && number !== undefined ? String(number).padStart(3, '0') : '-';
+    }
+
+    if (messageEl) {
+        messageEl.textContent = message || '';
+    }
+
+    if (issueBtn) {
+        issueBtn.style.display = showButton ? '' : 'none';
+    }
+}
 
 // 페이지 로드 시 초기화 및 인증 확인
 document.addEventListener('DOMContentLoaded', async () => {
@@ -433,7 +452,8 @@ function createQRScannerModal() {
 }
 
 // QR 스캔 시작
-async function scanQR() {
+async function scanQR(mode = 'booth') {
+    currentQRScanMode = mode || 'booth';
     // 모바일 기기 확인
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
@@ -645,14 +665,21 @@ function manualQRInput() {
             return;
         }
 
-        window.submitQRScan(encryptedData);
+        submitCurrentQRData(encryptedData);
     } catch (error) {
         // URL 파싱 실패 시 직접 입력된 데이터로 간주
-        window.submitQRScan(url);
+        submitCurrentQRData(url);
     }
 }
 
 // QR 스캔 결과 처리
+function submitCurrentQRData(payload) {
+    if (currentQRScanMode === 'lottery') {
+        return submitLotteryQRScan(payload);
+    }
+    return window.submitQRScan(payload);
+}
+
 function handleQRScanResult(decodedText) {
     try {
         // URL에서 data 파라미터 추출
@@ -661,14 +688,70 @@ function handleQRScanResult(decodedText) {
         const encryptedData = urlParams.get('data');
 
         if (encryptedData) {
-            window.submitQRScan(encryptedData);
+            submitCurrentQRData(encryptedData);
         } else {
             // URL이 아닌 경우 직접 데이터로 간주
-            window.submitQRScan(decodedText);
+            submitCurrentQRData(decodedText);
         }
     } catch (error) {
         // URL 파싱 실패 시 직접 입력된 데이터로 간주
-        window.submitQRScan(decodedText);
+        submitCurrentQRData(decodedText);
+    }
+}
+
+// 현장 추첨번호 발급 처리
+async function submitLotteryQRScan(encryptedData) {
+    const token = getToken();
+    if (!token) {
+        window.location.href = '/app/event/auth.html';
+        return;
+    }
+
+    if (!encryptedData) {
+        if (typeof showModal === 'function') {
+            showModal('오류', '유효하지 않은 QR 코드입니다.');
+        } else {
+            alert('유효하지 않은 QR 코드입니다.');
+        }
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/lottery/issue', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            },
+            body: JSON.stringify({ qrData: encryptedData })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const message = data.alreadyIssued
+                ? '이미 발급된 추첨번호입니다.'
+                : '추첨번호가 발급되었습니다!';
+            setLotteryDisplay(data.lotteryNumber, message, false);
+        } else {
+            const errorMessage = data.message || '추첨번호 발급 중 오류가 발생했습니다.';
+            if (typeof showModal === 'function') {
+                showModal('오류', errorMessage);
+            } else {
+                alert(errorMessage);
+            }
+        }
+    } catch (error) {
+        console.error('추첨번호 발급 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '추첨번호 발급 중 네트워크 오류가 발생했습니다.');
+        } else {
+            alert('추첨번호 발급 중 네트워크 오류가 발생했습니다.');
+        }
+    } finally {
+        currentQRScanMode = 'booth';
+        await loadLotteryNumber();
     }
 }
 
@@ -683,6 +766,7 @@ window.scanQR = scanQR;
 window.stopQRScan = stopQRScan;
 window.manualQRInput = manualQRInput;
 window.showPrizeInfo = showPrizeInfo;
+window.scanLotteryQR = function() { scanQR('lottery'); };
 
 // 경품 수령용 QR 생성
 // 경품 QR 생성 함수 제거됨 (모바일상품 추첨권은 안내 문구만 표시)
@@ -703,10 +787,13 @@ async function loadLotteryNumber() {
 
         const data = await response.json();
         if (data.success && data.lotteryNumber) {
-            document.getElementById('lotteryNumber').textContent = data.lotteryNumber;
+            setLotteryDisplay(data.lotteryNumber, '이미 추첨번호를 발급받으셨습니다.', false);
+        } else {
+            setLotteryDisplay(null, '현장 추첨 QR을 스캔하여 추첨번호를 발급받으세요.', true);
         }
     } catch (error) {
         console.error('추첨 번호 로드 오류:', error);
+        setLotteryDisplay(null, '추첨번호를 불러오는 중 오류가 발생했습니다.', true);
     }
 }
 
