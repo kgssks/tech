@@ -169,7 +169,7 @@ body {
 .hero-content {
     max-width: 800px;
     margin: 0 auto;
-    margin-bottom: -10rem;
+    margin-bottom: -20rem;
 }
 
 .hero-title {
@@ -708,6 +708,10 @@ section {
 
     .hero-subtitle {
         font-size: 1.2rem;
+    }
+
+    .hero-content {
+        margin-bottom: -10rem;
     }
 
     .tagline {
