@@ -21,6 +21,47 @@ function isLotteryEventDay() {
     }
 }
 
+function showMessageBox(title, message) {
+    if (typeof showModal === 'function') {
+        showModal(title, message);
+        return;
+    }
+
+    let box = document.getElementById('eventInlineMessage');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'eventInlineMessage';
+        box.style.position = 'fixed';
+        box.style.top = '20px';
+        box.style.left = '50%';
+        box.style.transform = 'translateX(-50%)';
+        box.style.zIndex = '1050';
+        box.style.background = 'rgba(255,255,255,0.95)';
+        box.style.border = '1px solid var(--kb-primary)';
+        box.style.borderRadius = '12px';
+        box.style.padding = '1rem 1.5rem';
+        box.style.boxShadow = '0 12px 30px rgba(0,0,0,0.2)';
+        box.style.maxWidth = '90%';
+        box.style.fontFamily = "KBFGText, 'Noto Sans KR', sans-serif";
+        document.body.appendChild(box);
+    }
+
+    box.innerHTML = `
+        <strong style="display:block; font-size:1.1rem; margin-bottom:0.5rem; color: var(--kb-primary);">
+            ${title}
+        </strong>
+        <span style="color: var(--kb-gray); font-size: 0.95rem; line-height: 1.5;">
+            ${message}
+        </span>
+    `;
+    box.style.display = 'block';
+
+    clearTimeout(box._hideTimer);
+    box._hideTimer = setTimeout(() => {
+        box.style.display = 'none';
+    }, 4000);
+}
+
 // GPS 정보 수집 함수
 function getGPSLocation() {
     return new Promise((resolve, reject) => {
@@ -787,11 +828,7 @@ window.showPrizeInfo = showPrizeInfo;
 window.scanLotteryQR = function() {
     if (!isLotteryEventDay()) {
         const message = '추첨번호 발급은 행사 당일에 가능합니다.';
-        if (typeof showModal === 'function') {
-            showModal('안내', message);
-        } else {
-            alert(message);
-        }
+        showMessageBox('안내', message);
         return;
     }
     scanQR('lottery');
