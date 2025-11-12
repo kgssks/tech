@@ -287,11 +287,18 @@ section {
 }
 
 .schedule-detail li {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.75rem;
     line-height: 1.45;
 }
 
+.schedule-topic {
+    display: block;
+    font-weight: 600;
+    color: #333;
+}
+
 .schedule-host {
+    display: block;
     color: var(--kb-blue);
     font-weight: 600;
 }
