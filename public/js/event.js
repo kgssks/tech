@@ -3,6 +3,24 @@ let ws = null;
 let userId = null;
 let currentQRScanMode = 'booth';
 
+const LOTTERY_EVENT_DAY = '2025-11-28';
+const lotteryDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+});
+
+function isLotteryEventDay() {
+    try {
+        const todayInKorea = lotteryDateFormatter.format(new Date());
+        return todayInKorea === LOTTERY_EVENT_DAY;
+    } catch (error) {
+        console.warn('행사일 판별 중 오류:', error);
+        return false;
+    }
+}
+
 // GPS 정보 수집 함수
 function getGPSLocation() {
     return new Promise((resolve, reject) => {
@@ -766,7 +784,18 @@ window.scanQR = scanQR;
 window.stopQRScan = stopQRScan;
 window.manualQRInput = manualQRInput;
 window.showPrizeInfo = showPrizeInfo;
-window.scanLotteryQR = function() { scanQR('lottery'); };
+window.scanLotteryQR = function() {
+    if (!isLotteryEventDay()) {
+        const message = '추첨번호 발급은 행사 당일에 가능합니다.';
+        if (typeof showModal === 'function') {
+            showModal('안내', message);
+        } else {
+            alert(message);
+        }
+        return;
+    }
+    scanQR('lottery');
+};
 
 // 경품 수령용 QR 생성
 // 경품 QR 생성 함수 제거됨 (모바일상품 추첨권은 안내 문구만 표시)
