@@ -531,6 +531,70 @@ router.get('/prize-claims', (req, res) => {
   );
 });
 
+// 현장 QR 추첨번호 발급 현황 조회
+router.get('/lottery-numbers', (req, res) => {
+  const db = getDB();
+
+  db.all(`SELECT 
+            ln.lottery_number,
+            u.empno,
+            u.empname,
+            u.deptname,
+            u.posname,
+            CASE WHEN pc.id IS NULL THEN '미수령' ELSE '수령완료' END as prize_status,
+            pc.claimed_at
+          FROM lottery_numbers ln
+          JOIN users u ON ln.user_id = u.id
+          LEFT JOIN prize_claims pc ON pc.user_id = u.id
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
+          ORDER BY ln.lottery_number ASC`,
+    (err, numbers) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: '서버 오류가 발생했습니다.'
+        });
+      }
+
+      // 통계 정보 추가
+      const totalCount = numbers.length;
+      const claimedCount = numbers.filter(n => n.prize_status === '수령완료').length;
+      const unclaimedCount = totalCount - claimedCount;
+
+      res.json({
+        success: true,
+        lotteryNumbers: numbers || [],
+        statistics: {
+          total: totalCount,
+          claimed: claimedCount,
+          unclaimed: unclaimedCount
+        }
+      });
+    }
+  );
+});
+
+// 경품 수령 기록 초기화 (모든 수령 기록 삭제)
+router.post('/prize-claims/reset', verifyAdminToken, (req, res) => {
+  const db = getDB();
+
+  db.run('DELETE FROM prize_claims', [], function(err) {
+    if (err) {
+      console.error('경품 수령 기록 초기화 오류:', err);
+      return res.status(500).json({
+        success: false,
+        message: '경품 수령 기록 초기화 중 오류가 발생했습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `경품 수령 기록 ${this.changes}건이 초기화되었습니다.`,
+      deletedCount: this.changes
+    });
+  });
+});
+
 // 관리자 토큰 검증 미들웨어 (JWT 기반)
 function verifyAdminToken(req, res, next) {
   const authHeader = req.headers.authorization || req.headers['kb-auth'];

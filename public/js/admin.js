@@ -1323,6 +1323,88 @@ async function drawBulkLottery(count = 10) {
     }
 }
 
+// 경품 수령 기록 초기화
+async function resetPrizeClaims() {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '경품 수령 기록 초기화',
+            '모든 경품 수령 기록을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 당첨자의 경품 수령 상태가 미수령으로 변경됩니다.',
+            async () => {
+                await proceedResetPrizeClaims();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('모든 경품 수령 기록을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 당첨자의 경품 수령 상태가 미수령으로 변경됩니다.')) {
+        return;
+    }
+    
+    await proceedResetPrizeClaims();
+}
+
+// 경품 수령 기록 초기화 실행
+async function proceedResetPrizeClaims() {
+    const btn = document.getElementById('resetPrizeClaimsBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/prize-claims/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('초기화 완료', data.message || `경품 수령 기록 ${data.deletedCount || 0}건이 초기화되었습니다.`, () => {
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `경품 수령 기록 ${data.deletedCount || 0}건이 초기화되었습니다.`);
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '경품 수령 기록 초기화에 실패했습니다.');
+            } else {
+                alert(data.message || '경품 수령 기록 초기화에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('경품 수령 기록 초기화 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '경품 수령 기록 초기화 중 오류가 발생했습니다.');
+        } else {
+            alert('경품 수령 기록 초기화 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 경품 수령 기록 초기화';
+    }
+}
+
 // 당첨번호 확인 (백엔드 API 호출)
 async function checkWinner(drawnNumber, callback) {
     try {
@@ -2236,6 +2318,59 @@ async function loadPrizeClaims() {
     }
 }
 
+// 현장 QR 추첨번호 발급 현황 로드
+async function loadLotteryNumbers() {
+    try {
+        const response = await fetch(`/api/admin/lottery-numbers`);
+        const data = await response.json();
+
+        if (data.success) {
+            // 통계 정보 업데이트
+            const totalEl = document.getElementById('lotteryTotalCount');
+            const unclaimedEl = document.getElementById('lotteryUnclaimedCount');
+            const claimedEl = document.getElementById('lotteryClaimedCount');
+            
+            if (totalEl) totalEl.textContent = data.statistics.total || 0;
+            if (unclaimedEl) unclaimedEl.textContent = data.statistics.unclaimed || 0;
+            if (claimedEl) claimedEl.textContent = data.statistics.claimed || 0;
+
+            // 테이블 업데이트
+            const tbody = document.getElementById('lotteryNumbersTableBody');
+            if (data.lotteryNumbers && data.lotteryNumbers.length > 0) {
+                tbody.innerHTML = data.lotteryNumbers.map(item => {
+                    const numberStr = String(item.lottery_number).padStart(3, '0');
+                    const statusBadge = item.prize_status === '수령완료' 
+                        ? '<span class="badge bg-danger">수령완료</span>'
+                        : '<span class="badge bg-success">미수령</span>';
+                    const claimedAt = item.claimed_at 
+                        ? new Date(item.claimed_at).toLocaleString('ko-KR')
+                        : '-';
+                    
+                    return `
+                        <tr>
+                            <td><strong>${numberStr}</strong></td>
+                            <td>${item.empno || '-'}</td>
+                            <td>${item.empname || '-'}</td>
+                            <td>${item.deptname || '-'}</td>
+                            <td>${item.posname || '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td>${claimedAt}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">발급된 추첨번호가 없습니다.</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('추첨번호 현황 로드 오류:', error);
+        const tbody = document.getElementById('lotteryNumbersTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+        }
+    }
+}
+
 // 부스 참여 삭제 함수
 async function deleteBoothParticipation(participationId, empname, boothCode) {
     if (typeof showConfirmModal === 'function') {
@@ -2593,6 +2728,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     break;
                 case '#prizes':
                     await loadPrizeClaims();
+                    break;
+                case '#lottery-numbers':
+                    await loadLotteryNumbers();
                     break;
                 case '#surveys':
                     await loadSurveys();
