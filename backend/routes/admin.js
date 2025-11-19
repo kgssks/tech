@@ -574,89 +574,207 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
   const positions = ['주임', '대리', '과장', '차장', '부장', '선임', '수석'];
   
   try {
-    // 기존 테스트 사용자 중 최대 번호 확인 (삭제된 사용자 포함)
-    const maxTestUserResult = await new Promise((resolve, reject) => {
-      db.all(`SELECT empno FROM users WHERE empno LIKE 'TEST%'`, (err, results) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        
-        // empno에서 숫자 부분 추출하여 최대값 찾기
-        let maxNumber = 0;
-        if (results && results.length > 0) {
-          results.forEach(user => {
-            // TEST001, TEST002 형식에서 숫자 부분 추출
-            const match = user.empno.match(/TEST(\d+)/);
-            if (match && match[1]) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNumber) {
-                maxNumber = num;
+    // 기존 테스트 사용자 중 최대 번호 확인 (삭제되지 않은 사용자만)
+    // 삭제된 사용자의 번호를 재사용하기 위해 사용 가능한 가장 작은 번호 찾기
+    const findAvailableTestNumbers = async (count) => {
+      // 모든 사용 중인 테스트 사용자 번호 가져오기 (삭제되지 않은 것만)
+      const usedTestNumbers = await new Promise((resolve, reject) => {
+        db.all(`SELECT empno FROM users WHERE empno LIKE 'TEST%' AND (deleted = 0 OR deleted IS NULL)`, (err, results) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          // empno에서 숫자 부분 추출하여 Set으로 변환
+          const numbers = new Set();
+          if (results && results.length > 0) {
+            results.forEach(user => {
+              const match = user.empno.match(/TEST(\d+)/);
+              if (match && match[1]) {
+                numbers.add(parseInt(match[1], 10));
               }
-            }
-          });
+            });
+          }
+          resolve(numbers);
+        });
+      });
+      
+      const availableNumbers = [];
+      let currentNumber = 1;
+      
+      while (availableNumbers.length < count) {
+        if (!usedTestNumbers.has(currentNumber)) {
+          availableNumbers.push(currentNumber);
         }
-        resolve({ maxNumber });
+        currentNumber++;
+        
+        // 무한 루프 방지 (최대 10000번까지)
+        if (currentNumber > 10000) {
+          break;
+        }
+      }
+      
+      return availableNumbers;
+    };
+    
+    const availableTestNumbers = await findAvailableTestNumbers(150);
+    
+    // 사용 가능한 테스트 번호가 150개 미만이면 에러
+    if (availableTestNumbers.length < 150) {
+      return res.status(400).json({
+        success: false,
+        message: `사용 가능한 테스트 사용자 번호가 부족합니다. (필요: 150개, 사용 가능: ${availableTestNumbers.length}개)`
       });
-    });
+    }
     
-    // 시작 번호는 최대 번호 + 1
-    const startTestNumber = (maxTestUserResult.maxNumber || 0) + 1;
+    // 시작 번호는 사용 가능한 가장 작은 번호
+    const startTestNumber = availableTestNumbers[0];
     
-    // 기존 최대 추첨번호 확인
-    const maxLotteryResult = await new Promise((resolve, reject) => {
-      db.get('SELECT MAX(lottery_number) as maxLottery FROM lottery_numbers', (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
+    // 사용 가능한 가장 작은 추첨번호 찾기 (1부터 시작하여 사용되지 않은 번호 찾기)
+    const findAvailableLotteryNumbers = async (count) => {
+      // 모든 사용 중인 번호를 한 번에 가져오기
+      const usedNumbers = await new Promise((resolve, reject) => {
+        db.all('SELECT lottery_number FROM lottery_numbers ORDER BY lottery_number', [], (err, rows) => {
+          if (err) reject(err);
+          else resolve(new Set(rows.map(row => row.lottery_number)));
+        });
       });
-    });
+      
+      const availableNumbers = [];
+      let currentNumber = 1;
+      
+      while (availableNumbers.length < count) {
+        if (!usedNumbers.has(currentNumber)) {
+          availableNumbers.push(currentNumber);
+        }
+        currentNumber++;
+        
+        // 무한 루프 방지 (최대 10000번까지)
+        if (currentNumber > 10000) {
+          break;
+        }
+      }
+      
+      return availableNumbers;
+    };
     
-    let startLotteryNumber = 1;
-    if (maxLotteryResult && maxLotteryResult.maxLottery) {
-      startLotteryNumber = maxLotteryResult.maxLottery + 1;
+    const availableLotteryNumbers = await findAvailableLotteryNumbers(150);
+    
+    // 사용 가능한 번호가 150개 미만이면 에러
+    if (availableLotteryNumbers.length < 150) {
+      return res.status(400).json({
+        success: false,
+        message: `사용 가능한 추첨번호가 부족합니다. (필요: 150개, 사용 가능: ${availableLotteryNumbers.length}개)`
+      });
     }
     
     let createdCount = 0;
     let errorCount = 0;
     const errors = [];
+    const usedLotteryNumbers = []; // 실제로 사용된 추첨번호 추적
     
     // 150명의 가상 사용자 생성 (Promise 배열로 변환)
     const createPromises = [];
     
     for (let i = 0; i < 150; i++) {
-      const testNumber = startTestNumber + i;
+      // 사용 가능한 테스트 번호 목록에서 순서대로 사용
+      const testNumber = availableTestNumbers[i];
       const empno = `TEST${String(testNumber).padStart(3, '0')}`;
       const empname = `테스트사용자${testNumber}`;
       const deptname = departments[i % departments.length];
       const posname = positions[i % positions.length];
       const tokenSecret = crypto.randomBytes(32).toString('hex');
-      const lotteryNumber = startLotteryNumber + i;
+      // 사용 가능한 추첨번호 목록에서 순서대로 사용 (반드시 배열에 있어야 함)
+      const lotteryNumber = availableLotteryNumbers[i];
       
-      // 사용자 생성 Promise
+      // 사용자 생성 Promise (삭제된 사용자가 있으면 재활용, 없으면 새로 생성)
       const createUserPromise = new Promise((resolve) => {
-        db.run(
-          `INSERT INTO users (empno, empname, deptname, posname, token_secret) 
-           VALUES (?, ?, ?, ?, ?)`,
-          [empno, empname, deptname, posname, tokenSecret],
-          function(err) {
-            if (err) {
+        // 먼저 삭제된 사용자가 있는지 확인
+        db.get(
+          `SELECT id FROM users WHERE empno = ? AND deleted = 1`,
+          [empno],
+          (checkErr, existingUser) => {
+            if (checkErr) {
               errorCount++;
-              errors.push(`사용자 ${empno} 생성 실패: ${err.message}`);
+              errors.push(`사용자 ${empno} 확인 실패: ${checkErr.message}`);
               resolve({ success: false, empno });
-            } else {
-              const userId = this.lastID;
-              createdCount++;
-              
-              // 추첨번호 부여 Promise
+              return;
+            }
+
+            if (existingUser) {
+              // 삭제된 사용자 재활용: 업데이트하고 deleted = 0으로 설정
               db.run(
-                `INSERT OR IGNORE INTO lottery_numbers (user_id, lottery_number) 
-                 VALUES (?, ?)`,
-                [userId, lotteryNumber],
-                (err) => {
-                  if (err) {
-                    errors.push(`사용자 ${empno} 추첨번호 부여 실패: ${err.message}`);
+                `UPDATE users 
+                 SET empname = ?, deptname = ?, posname = ?, token_secret = ?, deleted = 0, updated_at = datetime('now')
+                 WHERE id = ?`,
+                [empname, deptname, posname, tokenSecret, existingUser.id],
+                function(updateErr) {
+                  if (updateErr) {
+                    errorCount++;
+                    errors.push(`사용자 ${empno} 업데이트 실패: ${updateErr.message}`);
+                    resolve({ success: false, empno });
+                  } else {
+                    const userId = existingUser.id;
+                    createdCount++;
+                    
+                    // 기존 추첨번호가 있으면 삭제하고 새로 부여
+                    db.run(
+                      `DELETE FROM lottery_numbers WHERE user_id = ?`,
+                      [userId],
+                      (deleteErr) => {
+                        if (deleteErr) {
+                          errors.push(`사용자 ${empno} 기존 추첨번호 삭제 실패: ${deleteErr.message}`);
+                        }
+                        
+                        // 새 추첨번호 부여
+                        db.run(
+                          `INSERT INTO lottery_numbers (user_id, lottery_number) 
+                           VALUES (?, ?)`,
+                          [userId, lotteryNumber],
+                          (insertErr) => {
+                            if (insertErr) {
+                              errors.push(`사용자 ${empno} 추첨번호 부여 실패: ${insertErr.message}`);
+                            } else {
+                              usedLotteryNumbers.push(lotteryNumber);
+                            }
+                            resolve({ success: true, empno, userId, lotteryNumber });
+                          }
+                        );
+                      }
+                    );
                   }
-                  resolve({ success: true, empno, userId, lotteryNumber });
+                }
+              );
+            } else {
+              // 새 사용자 생성
+              db.run(
+                `INSERT INTO users (empno, empname, deptname, posname, token_secret) 
+                 VALUES (?, ?, ?, ?, ?)`,
+                [empno, empname, deptname, posname, tokenSecret],
+                function(insertErr) {
+                  if (insertErr) {
+                    errorCount++;
+                    errors.push(`사용자 ${empno} 생성 실패: ${insertErr.message}`);
+                    resolve({ success: false, empno });
+                  } else {
+                    const userId = this.lastID;
+                    createdCount++;
+                    
+                    // 추첨번호 부여
+                    db.run(
+                      `INSERT INTO lottery_numbers (user_id, lottery_number) 
+                       VALUES (?, ?)`,
+                      [userId, lotteryNumber],
+                      (lotteryErr) => {
+                        if (lotteryErr) {
+                          errors.push(`사용자 ${empno} 추첨번호 부여 실패: ${lotteryErr.message}`);
+                        } else {
+                          usedLotteryNumbers.push(lotteryNumber);
+                        }
+                        resolve({ success: true, empno, userId, lotteryNumber });
+                      }
+                    );
+                  }
                 }
               );
             }
@@ -677,12 +795,12 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
       errors: errorCount,
       errorDetails: errors.length > 0 ? errors : undefined,
       testUserRange: {
-        start: `TEST${String(startTestNumber).padStart(3, '0')}`,
-        end: `TEST${String(startTestNumber + createdCount - 1).padStart(3, '0')}`
+        start: `TEST${String(availableTestNumbers[0]).padStart(3, '0')}`,
+        end: `TEST${String(availableTestNumbers[availableTestNumbers.length - 1]).padStart(3, '0')}`
       },
       lotteryNumberRange: {
-        start: startLotteryNumber,
-        end: startLotteryNumber + createdCount - 1
+        start: availableLotteryNumbers[0],
+        end: availableLotteryNumbers[availableLotteryNumbers.length - 1]
       }
     });
     
@@ -822,25 +940,41 @@ router.post('/delete-test-users', verifyAdminToken, (req, res) => {
 
       const deletedCount = this.changes;
 
-      // 삭제된 테스트 사용자들의 부스 참여도 사용안함 처리
-      db.run(`UPDATE booth_participations 
-              SET deleted = 1 
+      // 삭제된 테스트 사용자들의 추첨번호 삭제 (실제 삭제)
+      db.run(`DELETE FROM lottery_numbers 
               WHERE user_id IN (
                 SELECT id FROM users WHERE empno LIKE 'TEST%' AND deleted = 1
-              ) AND (deleted = 0 OR deleted IS NULL)`,
+              )`,
         [],
-        function(boothErr) {
-          if (boothErr) {
-            console.error('테스트 사용자 부스 참여 삭제 오류:', boothErr);
-            // 부스 참여 삭제 실패해도 사용자 삭제는 성공했으므로 경고만 반환
+        function(lotteryErr) {
+          if (lotteryErr) {
+            console.error('테스트 사용자 추첨번호 삭제 오류:', lotteryErr);
           }
 
-          res.json({
-            success: true,
-            message: `테스트 사용자 ${deletedCount}명이 삭제(사용안함) 처리되었습니다.`,
-            deletedCount: deletedCount,
-            boothParticipationsDeleted: boothErr ? 0 : this.changes
-          });
+          const lotteryDeletedCount = lotteryErr ? 0 : this.changes;
+
+          // 삭제된 테스트 사용자들의 부스 참여도 사용안함 처리
+          db.run(`UPDATE booth_participations 
+                  SET deleted = 1 
+                  WHERE user_id IN (
+                    SELECT id FROM users WHERE empno LIKE 'TEST%' AND deleted = 1
+                  ) AND (deleted = 0 OR deleted IS NULL)`,
+            [],
+            function(boothErr) {
+              if (boothErr) {
+                console.error('테스트 사용자 부스 참여 삭제 오류:', boothErr);
+                // 부스 참여 삭제 실패해도 사용자 삭제는 성공했으므로 경고만 반환
+              }
+
+              res.json({
+                success: true,
+                message: `테스트 사용자 ${deletedCount}명이 삭제(사용안함) 처리되었습니다.`,
+                deletedCount: deletedCount,
+                lotteryNumbersDeleted: lotteryDeletedCount,
+                boothParticipationsDeleted: boothErr ? 0 : this.changes
+              });
+            }
+          );
         }
       );
     }

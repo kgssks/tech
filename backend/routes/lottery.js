@@ -182,15 +182,42 @@ router.post('/issue', authenticate, (req, res) => {
             });
           }
 
-          db.get('SELECT MAX(lottery_number) as maxNumber FROM lottery_numbers', (err, result) => {
+          // 사용 가능한 가장 작은 추첨번호 찾기 (1부터 시작하여 사용되지 않은 번호 찾기)
+          const findNextAvailableNumber = (callback) => {
+            let currentNumber = 1;
+            const maxAttempts = 10000; // 무한 루프 방지
+            
+            const checkNumber = () => {
+              if (currentNumber > maxAttempts) {
+                return callback(new Error('사용 가능한 추첨번호를 찾을 수 없습니다.'));
+              }
+              
+              db.get('SELECT 1 FROM lottery_numbers WHERE lottery_number = ?', [currentNumber], (err, row) => {
+                if (err) {
+                  return callback(err);
+                }
+                
+                if (!row) {
+                  // 사용 가능한 번호를 찾음
+                  return callback(null, currentNumber);
+                }
+                
+                // 다음 번호 확인
+                currentNumber++;
+                checkNumber();
+              });
+            };
+            
+            checkNumber();
+          };
+
+          findNextAvailableNumber((err, nextNumber) => {
             if (err) {
               return res.status(500).json({
                 success: false,
                 message: '추첨번호 생성 중 오류가 발생했습니다.'
               });
             }
-
-            const nextNumber = (result && result.maxNumber ? result.maxNumber : 0) + 1;
 
             db.run('INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
               [user.id, nextNumber],

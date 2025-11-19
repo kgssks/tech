@@ -398,6 +398,18 @@ section {
     align-items: center;
     justify-content: center;
     color: var(--kb-blue); /* 연사 사진 배경 텍스트는 파란색 유지 */
+    overflow: hidden; /* 이미지가 원형을 벗어나지 않도록 */
+}
+
+.speaker-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 이미지 비율 유지하며 컨테이너 채우기 */
+    border-radius: 50%; /* 원형 이미지 */
+}
+
+.speaker-photo img.speaker-img-adjust {
+    object-position: center top; /* 이미지를 위쪽으로 조정하여 머리 부분이 잘리지 않도록 */
 }
 
 .speaker-card h4 {
