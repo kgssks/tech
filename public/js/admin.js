@@ -644,10 +644,9 @@ async function generateSurveyQR() {
     }
 }
 
-// 현장 참여 추첨번호 발급 QR
+// 현장 참여 추첨번호 발급 QR (고정 QR)
 async function generateLotteryIssueQR() {
     const displayDiv = document.getElementById('lotteryIssueQRDisplay');
-    const validMinutesInput = document.getElementById('lotteryQrValidMinutes');
 
     if (!displayDiv) return;
 
@@ -655,11 +654,6 @@ async function generateLotteryIssueQR() {
     if (!adminToken) {
         displayDiv.innerHTML = '<div class="alert alert-danger">관리자 로그인이 필요합니다.</div>';
         return;
-    }
-
-    let validMinutes = parseInt(validMinutesInput?.value, 10);
-    if (isNaN(validMinutes) || validMinutes <= 0) {
-        validMinutes = undefined;
     }
 
     displayDiv.innerHTML = '<p>QR 코드를 생성중입니다...</p>';
@@ -672,21 +666,17 @@ async function generateLotteryIssueQR() {
                 'Authorization': `Bearer ${adminToken}`,
                 'kb-auth': `Bearer ${adminToken}`
             },
-            body: JSON.stringify(validMinutes ? { validMinutes } : {})
+            body: JSON.stringify({})
         });
 
         const data = await response.json();
 
         if (data.success) {
-            const expiresText = data.payload?.expiresAt
-                ? new Date(data.payload.expiresAt).toLocaleString('ko-KR')
-                : '미지정';
-
             displayDiv.innerHTML = `
                 <img src="${data.qrImage}" alt="현장 참여 QR" style="max-width: 280px; width: 100%; border: 1px solid #ddd; padding: 0.75rem; background: #fff;">
                 <p class="mt-2 mb-1"><strong>QR 링크:</strong></p>
                 <p style="word-break: break-all; font-size: 0.9rem;">${data.qrUrl}</p>
-                <p class="text-muted" style="font-size: 0.9rem;">유효 종료: ${expiresText}</p>
+                <p class="text-muted" style="font-size: 0.9rem;">고정 QR (유효시간 없음)</p>
             `;
         } else {
             displayDiv.innerHTML = `<div class="alert alert-danger">${data.message || 'QR 생성에 실패했습니다.'}</div>`;
@@ -1402,6 +1392,271 @@ async function proceedResetPrizeClaims() {
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 경품 수령 기록 초기화';
+    }
+}
+
+// 추첨번호 초기화
+async function resetLotteryNumbers() {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '추첨번호 초기화',
+            '모든 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 현장 QR 인증으로 발급된 모든 추첨번호가 삭제됩니다.',
+            async () => {
+                await proceedResetLotteryNumbers();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('모든 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 현장 QR 인증으로 발급된 모든 추첨번호가 삭제됩니다.')) {
+        return;
+    }
+    
+    await proceedResetLotteryNumbers();
+}
+
+// 추첨번호 초기화 실행
+async function proceedResetLotteryNumbers() {
+    const btn = document.getElementById('resetLotteryNumbersBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/lottery-numbers/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('초기화 완료', data.message || `추첨번호 ${data.deletedCount || 0}건이 초기화되었습니다.`, () => {
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `추첨번호 ${data.deletedCount || 0}건이 초기화되었습니다.`);
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '추첨번호 초기화에 실패했습니다.');
+            } else {
+                alert(data.message || '추첨번호 초기화에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('추첨번호 초기화 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '추첨번호 초기화 중 오류가 발생했습니다.');
+        } else {
+            alert('추첨번호 초기화 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화';
+    }
+}
+
+// 경품 추첨 테스트 대상자 생성
+async function generateLotteryTestUsers() {
+    const countInput = document.getElementById('lotteryTestUserCount');
+    const count = parseInt(countInput?.value, 10) || 150;
+    
+    if (isNaN(count) || count < 1 || count > 1000) {
+        if (typeof showModal === 'function') {
+            showModal('입력 오류', '생성할 인원 수는 1명 이상 1000명 이하여야 합니다.');
+        } else {
+            alert('생성할 인원 수는 1명 이상 1000명 이하여야 합니다.');
+        }
+        return;
+    }
+    
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '경품 추첨 테스트 대상자 생성',
+            `경품 추첨 테스트 대상자 ${count}명을 생성하시겠습니까?\n\n- 테스트 유저가 생성됩니다.\n- 각 유저에게 추첨번호가 자동으로 발급됩니다 (현장 QR 스캔했다고 가정).`,
+            async () => {
+                await proceedGenerateLotteryTestUsers(count);
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm(`경품 추첨 테스트 대상자 ${count}명을 생성하시겠습니까?`)) {
+        return;
+    }
+    
+    await proceedGenerateLotteryTestUsers(count);
+}
+
+// 경품 추첨 테스트 대상자 생성 실행
+async function proceedGenerateLotteryTestUsers(count) {
+    const btn = document.getElementById('generateLotteryTestUsersBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-person-plus"></i> 생성 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/generate-lottery-test-users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            },
+            body: JSON.stringify({ count })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('생성 완료', data.message || `경품 추첨 테스트 대상자 ${data.createdCount || 0}명이 생성되었습니다.`, () => {
+                    // 대시보드 새로고침
+                    loadDashboard();
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `경품 추첨 테스트 대상자 ${data.createdCount || 0}명이 생성되었습니다.`);
+                loadDashboard();
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '경품 추첨 테스트 대상자 생성에 실패했습니다.');
+            } else {
+                alert(data.message || '경품 추첨 테스트 대상자 생성에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('경품 추첨 테스트 대상자 생성 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '경품 추첨 테스트 대상자 생성 중 오류가 발생했습니다.');
+        } else {
+            alert('경품 추첨 테스트 대상자 생성 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-person-plus"></i> 테스트 대상자 생성';
+    }
+}
+
+// 경품 추첨 테스트 대상자 삭제
+async function deleteLotteryTestUsers() {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '경품 추첨 테스트 대상자 삭제',
+            '모든 경품 추첨 테스트 대상자와 발급된 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 다음 데이터가 삭제됩니다:\n- 모든 경품 추첨 테스트 유저 (LOTTERY_TEST로 시작)\n- 해당 유저들이 발급받은 모든 추첨번호',
+            async () => {
+                await proceedDeleteLotteryTestUsers();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('모든 경품 추첨 테스트 대상자와 발급된 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
+        return;
+    }
+    
+    await proceedDeleteLotteryTestUsers();
+}
+
+// 경품 추첨 테스트 대상자 삭제 실행
+async function proceedDeleteLotteryTestUsers() {
+    const btn = document.getElementById('deleteLotteryTestUsersBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-person-dash"></i> 삭제 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/delete-lottery-test-users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('삭제 완료', data.message || `경품 추첨 테스트 대상자 ${data.deletedUserCount || 0}명과 추첨번호 ${data.deletedLotteryCount || 0}건이 삭제되었습니다.`, () => {
+                    // 대시보드 새로고침
+                    loadDashboard();
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `경품 추첨 테스트 대상자 ${data.deletedUserCount || 0}명과 추첨번호 ${data.deletedLotteryCount || 0}건이 삭제되었습니다.`);
+                loadDashboard();
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '경품 추첨 테스트 대상자 삭제에 실패했습니다.');
+            } else {
+                alert(data.message || '경품 추첨 테스트 대상자 삭제에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('경품 추첨 테스트 대상자 삭제 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '경품 추첨 테스트 대상자 삭제 중 오류가 발생했습니다.');
+        } else {
+            alert('경품 추첨 테스트 대상자 삭제 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-person-dash"></i> 테스트 대상자 삭제';
     }
 }
 

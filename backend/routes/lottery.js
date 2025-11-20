@@ -65,17 +65,15 @@ function verifyAdmin(req, res, next) {
   }
 }
 
-// 현장 참여 QR 생성 (관리자 전용)
+// 현장 참여 QR 생성 (관리자 전용) - 고정 QR (유효시간 없음)
 router.post('/generate-qr', verifyAdmin, async (req, res) => {
   try {
-    const validMinutes = parseInt(req.body?.validMinutes, 10);
     const now = Date.now();
-    const expiresAt = now + (isNaN(validMinutes) || validMinutes <= 0 ? 1000 * 60 * 60 * 12 : validMinutes * 60 * 1000);
 
     const payload = {
       type: 'lottery_access',
       issuedAt: now,
-      expiresAt,
+      expiresAt: null, // 고정 QR - 유효시간 없음
       nonce: crypto.randomBytes(12).toString('hex')
     };
 
@@ -136,12 +134,13 @@ router.post('/issue', authenticate, (req, res) => {
     });
   }
 
-  if (payload.expiresAt && Date.now() > payload.expiresAt) {
-    return res.status(400).json({
-      success: false,
-      message: 'QR 코드 유효 기간이 만료되었습니다.'
-    });
-  }
+  // 고정 QR이므로 유효시간 검증 제거 (expiresAt이 null이면 만료되지 않음)
+  // if (payload.expiresAt && Date.now() > payload.expiresAt) {
+  //   return res.status(400).json({
+  //     success: false,
+  //     message: 'QR 코드 유효 기간이 만료되었습니다.'
+  //   });
+  // }
 
   db.serialize(() => {
     db.get(`SELECT id, empname, deptname, posname FROM users WHERE token_secret = ?`,
