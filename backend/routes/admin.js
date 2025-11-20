@@ -668,6 +668,8 @@ router.post('/generate-lottery-test-users', verifyAdminToken, async (req, res) =
     
     const availableTestNumbers = await findAvailableTestNumbers(count);
     
+    console.log(`[경품 추첨 테스트] 사용 가능한 테스트 번호: ${availableTestNumbers.length}개 (필요: ${count}개)`);
+    
     if (availableTestNumbers.length < count) {
       return res.status(400).json({
         success: false,
@@ -703,6 +705,8 @@ router.post('/generate-lottery-test-users', verifyAdminToken, async (req, res) =
     
     const availableLotteryNumbers = await findAvailableLotteryNumbers(count);
     
+    console.log(`[경품 추첨 테스트] 사용 가능한 추첨번호: ${availableLotteryNumbers.length}개 (필요: ${count}개)`);
+    
     if (availableLotteryNumbers.length < count) {
       return res.status(400).json({
         success: false,
@@ -725,44 +729,109 @@ router.post('/generate-lottery-test-users', verifyAdminToken, async (req, res) =
       const lotteryNumber = availableLotteryNumbers[i];
       
       try {
-        // 사용자 생성
+        // 사용자 생성 또는 업데이트 (삭제된 사용자가 있으면 재활용)
         await new Promise((resolve, reject) => {
-          db.run(
-            `INSERT INTO users (empno, empname, deptname, posname, token_secret) VALUES (?, ?, ?, ?, ?)`,
-            [empno, empname, deptname, posname, tokenSecret],
-            function(insertErr) {
-              if (insertErr) {
-                reject(insertErr);
+          // 먼저 삭제된 사용자가 있는지 확인
+          db.get(
+            `SELECT id FROM users WHERE empno = ? AND deleted = 1`,
+            [empno],
+            (checkErr, existingUser) => {
+              if (checkErr) {
+                console.error(`[경품 추첨 테스트] 사용자 확인 실패 (${empno}):`, checkErr);
+                reject(checkErr);
                 return;
               }
               
-              const userId = this.lastID;
-              
-              // 추첨번호 발급 (현장 QR을 찍었다고 가정)
-              db.run(
-                `INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)`,
-                [userId, lotteryNumber],
-                (lotteryErr) => {
-                  if (lotteryErr) {
-                    reject(lotteryErr);
-                    return;
+              if (existingUser) {
+                // 삭제된 사용자가 있으면 재활용 (deleted = 0으로 변경)
+                const userId = existingUser.id;
+                db.run(
+                  `UPDATE users SET empname = ?, deptname = ?, posname = ?, token_secret = ?, deleted = 0 WHERE id = ?`,
+                  [empname, deptname, posname, tokenSecret, userId],
+                  function(updateErr) {
+                    if (updateErr) {
+                      console.error(`[경품 추첨 테스트] 사용자 업데이트 실패 (${empno}):`, updateErr);
+                      reject(updateErr);
+                      return;
+                    }
+                    
+                    // 기존 추첨번호가 있으면 삭제
+                    db.run(
+                      `DELETE FROM lottery_numbers WHERE user_id = ?`,
+                      [userId],
+                      (deleteErr) => {
+                        if (deleteErr) {
+                          console.error(`[경품 추첨 테스트] 기존 추첨번호 삭제 실패 (${empno}):`, deleteErr);
+                          reject(deleteErr);
+                          return;
+                        }
+                        
+                        // 새로운 추첨번호 발급
+                        db.run(
+                          `INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)`,
+                          [userId, lotteryNumber],
+                          (lotteryErr) => {
+                            if (lotteryErr) {
+                              console.error(`[경품 추첨 테스트] 추첨번호 발급 실패 (${empno}, 번호: ${lotteryNumber}):`, lotteryErr);
+                              reject(lotteryErr);
+                              return;
+                            }
+                            resolve();
+                          }
+                        );
+                      }
+                    );
                   }
-                  resolve();
-                }
-              );
+                );
+              } else {
+                // 새 사용자 생성
+                db.run(
+                  `INSERT INTO users (empno, empname, deptname, posname, token_secret) VALUES (?, ?, ?, ?, ?)`,
+                  [empno, empname, deptname, posname, tokenSecret],
+                  function(insertErr) {
+                    if (insertErr) {
+                      console.error(`[경품 추첨 테스트] 사용자 생성 실패 (${empno}):`, insertErr);
+                      reject(insertErr);
+                      return;
+                    }
+                    
+                    const userId = this.lastID;
+                    
+                    // 추첨번호 발급 (현장 QR을 찍었다고 가정)
+                    db.run(
+                      `INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)`,
+                      [userId, lotteryNumber],
+                      (lotteryErr) => {
+                        if (lotteryErr) {
+                          console.error(`[경품 추첨 테스트] 추첨번호 발급 실패 (${empno}, 번호: ${lotteryNumber}):`, lotteryErr);
+                          reject(lotteryErr);
+                          return;
+                        }
+                        resolve();
+                      }
+                    );
+                  }
+                );
+              }
             }
           );
         });
         
         createdCount++;
+        if (createdCount % 10 === 0) {
+          console.log(`[경품 추첨 테스트] 진행 중: ${createdCount}/${count}명 생성 완료`);
+        }
       } catch (error) {
         errorCount++;
+        console.error(`[경품 추첨 테스트] 에러 (${empno}):`, error);
         errors.push({
           empno,
           error: error.message
         });
       }
     }
+    
+    console.log(`[경품 추첨 테스트] 완료: 생성 ${createdCount}명, 에러 ${errorCount}건`);
     
     res.json({
       success: true,
