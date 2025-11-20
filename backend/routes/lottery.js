@@ -181,40 +181,41 @@ router.post('/issue', authenticate, (req, res) => {
             });
           }
 
-          // 사용 가능한 가장 작은 추첨번호 찾기 (1부터 시작하여 사용되지 않은 번호 찾기)
-          const findNextAvailableNumber = (callback) => {
-            let currentNumber = 1;
-            const maxAttempts = 10000; // 무한 루프 방지
-            
-            const checkNumber = () => {
-              if (currentNumber > maxAttempts) {
-                return callback(new Error('사용 가능한 추첨번호를 찾을 수 없습니다.'));
+          // 100~999 범위에서 사용 가능한 랜덤 추첨번호 찾기
+          const findRandomAvailableNumber = (callback) => {
+            // 사용 중인 번호 조회
+            db.all('SELECT lottery_number FROM lottery_numbers WHERE lottery_number >= 100 AND lottery_number <= 999', [], (err, rows) => {
+              if (err) {
+                return callback(err);
               }
               
-              db.get('SELECT 1 FROM lottery_numbers WHERE lottery_number = ?', [currentNumber], (err, row) => {
-                if (err) {
-                  return callback(err);
+              const usedNumbers = new Set(rows.map(row => row.lottery_number));
+              const availableNumbers = [];
+              
+              // 100~999 범위에서 사용 가능한 번호 찾기
+              for (let num = 100; num <= 999; num++) {
+                if (!usedNumbers.has(num)) {
+                  availableNumbers.push(num);
                 }
-                
-                if (!row) {
-                  // 사용 가능한 번호를 찾음
-                  return callback(null, currentNumber);
-                }
-                
-                // 다음 번호 확인
-                currentNumber++;
-                checkNumber();
-              });
-            };
-            
-            checkNumber();
+              }
+              
+              if (availableNumbers.length === 0) {
+                return callback(new Error('사용 가능한 추첨번호가 없습니다. (100~999 범위 모두 사용 중)'));
+              }
+              
+              // 사용 가능한 번호 중 랜덤 선택
+              const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+              const selectedNumber = availableNumbers[randomIndex];
+              
+              return callback(null, selectedNumber);
+            });
           };
 
-          findNextAvailableNumber((err, nextNumber) => {
+          findRandomAvailableNumber((err, nextNumber) => {
             if (err) {
               return res.status(500).json({
                 success: false,
-                message: '추첨번호 생성 중 오류가 발생했습니다.'
+                message: err.message || '추첨번호 생성 중 오류가 발생했습니다.'
               });
             }
 

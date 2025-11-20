@@ -1141,6 +1141,19 @@ async function drawLottery() {
     // 결과 영역 초기화
     resultDiv.innerHTML = '';
     
+    // lotteryDigits 초기화 확인
+    if (!lotteryDigits || !lotteryDigits.hundreds || !lotteryDigits.tens || !lotteryDigits.ones) {
+        console.error('[룰렛 오류] lotteryDigits가 초기화되지 않았습니다. 룰렛을 초기화합니다.');
+        await initLotteryWheels();
+        // 초기화 후 다시 확인
+        if (!lotteryDigits || !lotteryDigits.hundreds || !lotteryDigits.tens || !lotteryDigits.ones) {
+            resultDiv.innerHTML = '<div class="alert alert-error">룰렛 초기화에 실패했습니다. 페이지를 새로고침해주세요.</div>';
+            drawBtn.disabled = false;
+            drawBtn.textContent = '추첨하기';
+            return;
+        }
+    }
+    
     // 추첨 시작 전 모든 룰렛 초기화 (기존 상태 완전 제거)
     resetLotteryWheels();
     
@@ -1148,19 +1161,25 @@ async function drawLottery() {
     await new Promise(resolve => setTimeout(resolve, 100));
     
     try {
-        // 각 자릿수별로 랜덤 스크롤 값 생성
-        // 백의자리는 숫자가 적으므로(2개 또는 5개) 20~30 범위로 제한하여 배정된 숫자 범위 내에서만 회전
-        // 십의자리, 일의자리는 0~9로 10개이므로 20~100 범위 유지
-        const randomScrollValues = [
-            Math.floor(Math.random() * (30 - 20 + 1)) + 20, // 백의자리: 20~30 (배정된 숫자 범위 내에서만 회전)
-            Math.floor(Math.random() * (100 - 20 + 1)) + 20, // 십의자리: 20~100
-            Math.floor(Math.random() * (100 - 20 + 1)) + 20  // 일의자리: 20~100
+        // 백엔드에서 발급된 번호 중 하나를 랜덤 선택
+        const selectResponse = await fetch('/api/prize/select-lottery-number');
+        const selectData = await selectResponse.json();
+        
+        if (!selectData.success) {
+            throw new Error(selectData.message || '추첨번호 선택에 실패했습니다.');
+        }
+        
+        const selectedNumber = selectData.lotteryNumber;
+        const targetDigits = [
+            selectData.digits.hundreds,
+            selectData.digits.tens,
+            selectData.digits.ones
         ];
         
-        // 각 룰렛을 랜덤 스크롤 값만큼 회전시킴
-        spinWheelsRandom(randomScrollValues, (finalDigits) => {
-            // 애니메이션 완료 후 화살표 위치의 숫자를 읽어서 당첨번호 결정
-            const drawnNumber = parseInt(finalDigits.join(''));
+        // 선택된 번호의 각 자릿수로 룰렛이 멈추도록 애니메이션
+        spinWheels(targetDigits, (finalDigits) => {
+            // 애니메이션 완료 후 당첨번호 확인
+            const drawnNumber = selectedNumber; // 선택된 번호 사용
             
             // 백엔드에 당첨번호 확인 요청
             checkWinner(drawnNumber, (data) => {
@@ -1741,7 +1760,20 @@ function processWheelCompletion(wheelNum, index, animationDuration, finalDigits,
     
     // 정규화된 거리를 사용하여 정확한 숫자 인덱스 계산
     const digitIndex = Math.round(normalizedDistance / itemHeight) % digitCount;
+    
+    // 인덱스 유효성 검증
+    if (digitIndex < 0 || digitIndex >= digitCount || !availableDigits || availableDigits.length === 0) {
+        console.error(`[룰렛 오류] 유효하지 않은 인덱스: ${digitIndex}, 사용 가능한 숫자:`, availableDigits);
+        return;
+    }
+    
     const finalDigit = availableDigits[digitIndex];
+    
+    // 최종 숫자 유효성 검증
+    if (finalDigit === undefined || finalDigit === null) {
+        console.error(`[룰렛 오류] 유효하지 않은 숫자: 인덱스 ${digitIndex}, 사용 가능한 숫자:`, availableDigits);
+        return;
+    }
     
     // 최종 위치 재계산 (순환 처리된 위치 - 정확히 해당 숫자가 중앙에 오도록)
     const finalNormalizedPosition = initialPosition - (digitIndex * itemHeight);
@@ -2427,7 +2459,7 @@ function spinWheels(targetDigits, callback) {
             }, 100);
         });
         
-        if (callback) callback();
+        if (callback) callback(targetDigits);
     }, animationDuration + 200);
 }
 

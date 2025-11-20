@@ -677,30 +677,39 @@ router.post('/generate-lottery-test-users', verifyAdminToken, async (req, res) =
       });
     }
     
-    // 사용 가능한 가장 작은 추첨번호 찾기
+    // 100~999 범위에서 사용 가능한 랜덤 추첨번호 찾기
     const findAvailableLotteryNumbers = async (count) => {
       const usedNumbers = await new Promise((resolve, reject) => {
-        db.all('SELECT lottery_number FROM lottery_numbers ORDER BY lottery_number', [], (err, rows) => {
+        db.all('SELECT lottery_number FROM lottery_numbers WHERE lottery_number >= 100 AND lottery_number <= 999', [], (err, rows) => {
           if (err) reject(err);
           else resolve(new Set(rows.map(row => row.lottery_number)));
         });
       });
       
-      const availableNumbers = [];
-      let currentNumber = 1;
+      const allAvailableNumbers = [];
       
-      while (availableNumbers.length < count) {
-        if (!usedNumbers.has(currentNumber)) {
-          availableNumbers.push(currentNumber);
-        }
-        currentNumber++;
-        
-        if (currentNumber > 10000) {
-          break;
+      // 100~999 범위에서 사용 가능한 번호 모두 찾기
+      for (let num = 100; num <= 999; num++) {
+        if (!usedNumbers.has(num)) {
+          allAvailableNumbers.push(num);
         }
       }
       
-      return availableNumbers;
+      if (allAvailableNumbers.length < count) {
+        return allAvailableNumbers; // 사용 가능한 만큼만 반환
+      }
+      
+      // 사용 가능한 번호 중 랜덤으로 count개 선택
+      const selectedNumbers = [];
+      const availableNumbersCopy = [...allAvailableNumbers];
+      
+      for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * availableNumbersCopy.length);
+        selectedNumbers.push(availableNumbersCopy[randomIndex]);
+        availableNumbersCopy.splice(randomIndex, 1); // 선택된 번호 제거
+      }
+      
+      return selectedNumbers;
     };
     
     const availableLotteryNumbers = await findAvailableLotteryNumbers(count);

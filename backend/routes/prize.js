@@ -10,6 +10,54 @@ function shuffleArray(array) {
   return array;
 }
 
+// 룰렛 추첨용 번호 선택 (발급된 번호 중 경품 미수령자만 랜덤 선택)
+router.get('/select-lottery-number', (req, res) => {
+  const db = getDB();
+
+  // 경품 미수령자 중 발급된 추첨번호 중 하나를 랜덤으로 선택
+  db.all(`SELECT ln.lottery_number
+          FROM lottery_numbers ln
+          JOIN users u ON ln.user_id = u.id
+          LEFT JOIN prize_claims pc ON pc.user_id = u.id
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
+            AND pc.id IS NULL
+            AND ln.lottery_number >= 100
+            AND ln.lottery_number <= 999
+          ORDER BY RANDOM()
+          LIMIT 1`, [], (err, results) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: '서버 오류가 발생했습니다.'
+      });
+    }
+
+    if (!results || results.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: '추첨 가능한 번호가 없습니다.'
+      });
+    }
+
+    const selectedNumber = results[0].lottery_number;
+    
+    // 선택된 번호의 각 자릿수 추출
+    const hundreds = Math.floor(selectedNumber / 100);
+    const tens = Math.floor((selectedNumber % 100) / 10);
+    const ones = selectedNumber % 10;
+
+    res.json({
+      success: true,
+      lotteryNumber: selectedNumber,
+      digits: {
+        hundreds,
+        tens,
+        ones
+      }
+    });
+  });
+});
+
 // 경품 추첨 결과 확인 (프론트엔드에서 결정한 당첨번호 확인)
 router.post('/check-winner', (req, res) => {
   const db = getDB();
