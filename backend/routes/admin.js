@@ -908,6 +908,220 @@ router.post('/delete-lottery-test-users', verifyAdminToken, (req, res) => {
   );
 });
 
+// 당일 랜딩페이지 접속 사용자 조회 (웹로그 기반)
+router.get('/daily-participants', verifyAdminToken, (req, res) => {
+  const db = getDB();
+  const { date } = req.query; // YYYY-MM-DD 형식, 없으면 오늘 날짜
+  
+  // 날짜 설정 (기본값: 오늘)
+  const targetDate = date || new Date().toISOString().split('T')[0];
+  
+  // SQLite의 date() 함수를 사용하여 날짜 비교 (ISO 형식 타임스탬프 지원)
+  // date() 함수는 'YYYY-MM-DD' 형식으로 변환하여 비교
+  // 각 사용자의 최초 접근 시간도 함께 조회
+  db.all(`SELECT DISTINCT 
+            u.id,
+            u.empno,
+            u.empname,
+            u.deptname,
+            u.posname,
+            ln.lottery_number,
+            CASE WHEN pc.id IS NULL THEN '미수령' ELSE '수령완료' END as prize_status,
+            (SELECT MIN(wl2.timestamp) 
+             FROM web_logs wl2 
+             WHERE wl2.user_id = u.id 
+               AND wl2.path = '/' 
+               AND date(wl2.timestamp) = date(?)) as first_access_time
+          FROM web_logs wl
+          JOIN users u ON wl.user_id = u.id
+          LEFT JOIN lottery_numbers ln ON ln.user_id = u.id
+          LEFT JOIN prize_claims pc ON pc.user_id = u.id
+          WHERE wl.path = '/' 
+            AND date(wl.timestamp) = date(?)
+            AND wl.user_id IS NOT NULL
+            AND (u.deleted = 0 OR u.deleted IS NULL)
+          ORDER BY u.empname ASC`, 
+    [targetDate, targetDate], 
+    (err, participants) => {
+      if (err) {
+        console.error('당일 참가자 조회 오류:', err);
+        return res.status(500).json({
+          success: false,
+          message: '당일 참가자 조회 중 오류가 발생했습니다.'
+        });
+      }
+      
+      res.json({
+        success: true,
+        date: targetDate,
+        participants: participants || [],
+        count: participants ? participants.length : 0
+      });
+    }
+  );
+});
+
+// 선택된 사용자에게 100~999 랜덤 번호 할당
+router.post('/assign-lottery-numbers', verifyAdminToken, (req, res) => {
+  const db = getDB();
+  const { userIds } = req.body; // 배열
+  
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: '사용자 ID 목록이 필요합니다.'
+    });
+  }
+  
+  // 사용 중인 번호 조회 (100~999 범위)
+  db.all('SELECT lottery_number FROM lottery_numbers WHERE lottery_number >= 100 AND lottery_number <= 999', [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: '추첨번호 조회 중 오류가 발생했습니다.'
+      });
+    }
+    
+    const usedNumbers = new Set(rows.map(row => row.lottery_number));
+    const availableNumbers = [];
+    
+    // 100~999 범위에서 사용 가능한 번호 찾기
+    for (let num = 100; num <= 999; num++) {
+      if (!usedNumbers.has(num)) {
+        availableNumbers.push(num);
+      }
+    }
+    
+    if (availableNumbers.length < userIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: `사용 가능한 추첨번호가 부족합니다. (필요: ${userIds.length}개, 사용 가능: ${availableNumbers.length}개)`
+      });
+    }
+    
+    // 사용 가능한 번호 중 랜덤으로 선택
+    const selectedNumbers = [];
+    const availableNumbersCopy = [...availableNumbers];
+    
+    for (let i = 0; i < userIds.length; i++) {
+      const randomIndex = Math.floor(Math.random() * availableNumbersCopy.length);
+      selectedNumbers.push(availableNumbersCopy[randomIndex]);
+      availableNumbersCopy.splice(randomIndex, 1);
+    }
+    
+    let assignedCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    
+    // 각 사용자에게 번호 할당
+    userIds.forEach((userId, index) => {
+      // 이미 번호가 있는지 확인
+      db.get('SELECT lottery_number FROM lottery_numbers WHERE user_id = ?', [userId], (err, existing) => {
+        if (err) {
+          errorCount++;
+          errors.push({ userId, error: '조회 오류' });
+          checkComplete();
+          return;
+        }
+        
+        if (existing) {
+          // 이미 번호가 있으면 업데이트
+          db.run('UPDATE lottery_numbers SET lottery_number = ? WHERE user_id = ?',
+            [selectedNumbers[index], userId],
+            (updateErr) => {
+              if (updateErr) {
+                errorCount++;
+                errors.push({ userId, error: updateErr.message });
+              } else {
+                assignedCount++;
+              }
+              checkComplete();
+            }
+          );
+        } else {
+          // 새로 할당
+          db.run('INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
+            [userId, selectedNumbers[index]],
+            (insertErr) => {
+              if (insertErr) {
+                errorCount++;
+                errors.push({ userId, error: insertErr.message });
+              } else {
+                assignedCount++;
+              }
+              checkComplete();
+            }
+          );
+        }
+      });
+    });
+    
+    function checkComplete() {
+      if (assignedCount + errorCount === userIds.length) {
+        res.json({
+          success: true,
+          message: `추첨번호 ${assignedCount}개가 할당되었습니다.`,
+          assignedCount,
+          errorCount,
+          errors: errors.length > 0 ? errors : undefined
+        });
+      }
+    }
+  });
+});
+
+// 할당한 번호 초기화 (선택된 사용자들의 번호만 삭제)
+router.post('/reset-assigned-numbers', verifyAdminToken, (req, res) => {
+  const db = getDB();
+  const { userIds } = req.body; // 배열, 없으면 모든 할당된 번호 삭제
+  
+  if (userIds && Array.isArray(userIds) && userIds.length > 0) {
+    // 선택된 사용자들의 번호만 삭제
+    const placeholders = userIds.map(() => '?').join(',');
+    db.run(`DELETE FROM lottery_numbers WHERE user_id IN (${placeholders})`,
+      userIds,
+      function(err) {
+        if (err) {
+          console.error('할당 번호 초기화 오류:', err);
+          return res.status(500).json({
+            success: false,
+            message: '할당 번호 초기화 중 오류가 발생했습니다.'
+          });
+        }
+        
+        res.json({
+          success: true,
+          message: `할당된 추첨번호 ${this.changes}개가 삭제되었습니다.`,
+          deletedCount: this.changes
+        });
+      }
+    );
+  } else {
+    // 모든 할당된 번호 삭제 (테스트 사용자 제외)
+    db.run(`DELETE FROM lottery_numbers 
+            WHERE user_id NOT IN (
+              SELECT id FROM users WHERE empno LIKE 'LOTTERY_TEST%' OR empno LIKE 'TEST%'
+            )`,
+      [],
+      function(err) {
+        if (err) {
+          console.error('할당 번호 초기화 오류:', err);
+          return res.status(500).json({
+            success: false,
+            message: '할당 번호 초기화 중 오류가 발생했습니다.'
+          });
+        }
+        
+        res.json({
+          success: true,
+          message: `모든 할당된 추첨번호 ${this.changes}개가 삭제되었습니다.`,
+          deletedCount: this.changes
+        });
+      }
+    );
+  }
+});
+
 // 관리자 토큰 검증 미들웨어 (JWT 기반)
 function verifyAdminToken(req, res, next) {
   const authHeader = req.headers.authorization || req.headers['kb-auth'];

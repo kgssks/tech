@@ -702,6 +702,48 @@
                 </div>
 
                 <hr class="my-4">
+                <!-- 당일 참가자 번호 할당 -->
+                <div class="daily-participants-section">
+                    <h4>당일 참가자 번호 할당</h4>
+                    <p class="text-muted mb-3">행사 당일 랜딩페이지에 접속한 사용자에게 추첨번호를 할당할 수 있습니다. 웹로그 기반으로 당일 참가자를 확인합니다.</p>
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label for="participantDate" class="form-label">날짜 선택</label>
+                            <input type="date" class="form-control" id="participantDate" value="">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="loadDailyParticipantsBtn" onclick="loadDailyParticipants()">
+                                <i class="bi bi-search"></i> 참가자 조회
+                            </button>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-success w-100" id="assignNumbersBtn" onclick="assignLotteryNumbers()" disabled>
+                                <i class="bi bi-shuffle"></i> 번호 할당
+                            </button>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button class="btn btn-warning w-100" id="resetAssignedNumbersBtn" onclick="resetAssignedNumbers()" disabled>
+                                <i class="bi bi-arrow-counterclockwise"></i> 할당 초기화
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">참가자 목록</label>
+                            <div>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="selectAllParticipants()">전체 선택</button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="deselectAllParticipants()">전체 해제</button>
+                            </div>
+                        </div>
+                        <div id="participantsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            <p class="text-muted text-center mb-0">날짜를 선택하고 "참가자 조회" 버튼을 클릭하세요.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
 
                 <!-- 경품 추첨 테스트 대상자 생성 -->
                 <div class="lottery-test-users-section">

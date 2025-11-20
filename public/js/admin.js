@@ -3029,5 +3029,350 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    
+    // 오늘 날짜를 기본값으로 설정
+    const dateInput = document.getElementById('participantDate');
+    if (dateInput && !dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
 });
+
+// 당일 참가자 목록 로드
+async function loadDailyParticipants() {
+    const dateInput = document.getElementById('participantDate');
+    const listDiv = document.getElementById('participantsList');
+    const loadBtn = document.getElementById('loadDailyParticipantsBtn');
+    const assignBtn = document.getElementById('assignNumbersBtn');
+    const resetBtn = document.getElementById('resetAssignedNumbersBtn');
+    
+    if (!dateInput || !listDiv) return;
+    
+    // 날짜가 없으면 오늘 날짜로 설정
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+    
+    const selectedDate = dateInput.value;
+    
+    loadBtn.disabled = true;
+    loadBtn.innerHTML = '<i class="bi bi-search"></i> 조회 중...';
+    listDiv.innerHTML = '<p class="text-center">참가자 목록을 불러오는 중...</p>';
+    
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+        
+        const response = await fetch(`/api/admin/daily-participants?date=${selectedDate}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const participants = data.participants || [];
+            
+            if (participants.length === 0) {
+                listDiv.innerHTML = '<p class="text-muted text-center mb-0">해당 날짜에 랜딩페이지에 접속한 사용자가 없습니다.</p>';
+                assignBtn.disabled = true;
+                resetBtn.disabled = true;
+            } else {
+                let html = `<div class="mb-2"><strong>총 ${participants.length}명</strong></div><div class="list-group">`;
+                participants.forEach((participant, index) => {
+                    const hasNumber = participant.lottery_number !== null && participant.lottery_number !== undefined;
+                    const numberStr = hasNumber ? participant.lottery_number.toString().padStart(3, '0') : '미할당';
+                    const statusClass = participant.prize_status === '수령완료' ? 'text-danger' : 'text-success';
+                    const sequenceNumber = index + 1;
+                    
+                    // 최초 접근 시간 포맷팅
+                    let firstAccessTime = '';
+                    if (participant.first_access_time) {
+                        try {
+                            const accessDate = new Date(participant.first_access_time);
+                            firstAccessTime = accessDate.toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                            });
+                        } catch (e) {
+                            firstAccessTime = participant.first_access_time;
+                        }
+                    }
+                    
+                    html += `
+                        <div class="list-group-item">
+                            <div class="form-check">
+                                <input class="form-check-input participant-checkbox" type="checkbox" 
+                                       value="${participant.id}" id="participant_${participant.id}"
+                                       ${hasNumber ? 'data-has-number="true"' : ''}>
+                                <label class="form-check-label w-100" for="participant_${participant.id}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="badge bg-light text-dark">${sequenceNumber}</span>
+                                            <strong>${participant.empname}</strong>
+                                            <span class="text-muted">(${participant.empno})</span>
+                                            <span class="text-muted">|</span>
+                                            <span class="text-muted">${participant.deptname} ${participant.posname || ''}</span>
+                                            ${firstAccessTime ? `<span class="text-muted">|</span><small class="text-info"><i class="bi bi-clock"></i> ${firstAccessTime}</small>` : ''}
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge ${hasNumber ? 'bg-primary' : 'bg-secondary'}">${numberStr}</span>
+                                            <small class="${statusClass}">${participant.prize_status}</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                listDiv.innerHTML = html;
+                assignBtn.disabled = false;
+                resetBtn.disabled = false;
+            }
+        } else {
+            listDiv.innerHTML = `<p class="text-danger text-center">${data.message || '참가자 조회에 실패했습니다.'}</p>`;
+            assignBtn.disabled = true;
+            resetBtn.disabled = true;
+        }
+    } catch (error) {
+        console.error('당일 참가자 조회 오류:', error);
+        listDiv.innerHTML = '<p class="text-danger text-center">참가자 조회 중 오류가 발생했습니다.</p>';
+        assignBtn.disabled = true;
+        resetBtn.disabled = true;
+    } finally {
+        loadBtn.disabled = false;
+        loadBtn.innerHTML = '<i class="bi bi-search"></i> 참가자 조회';
+    }
+}
+
+// 전체 선택
+function selectAllParticipants() {
+    const checkboxes = document.querySelectorAll('.participant-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+// 전체 해제
+function deselectAllParticipants() {
+    const checkboxes = document.querySelectorAll('.participant-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+
+// 선택된 참가자에게 번호 할당
+async function assignLotteryNumbers() {
+    const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        if (typeof showModal === 'function') {
+            showModal('선택 오류', '번호를 할당할 참가자를 선택해주세요.');
+        } else {
+            alert('번호를 할당할 참가자를 선택해주세요.');
+        }
+        return;
+    }
+    
+    const userIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '번호 할당',
+            `선택한 ${userIds.length}명의 참가자에게 100~999 범위의 랜덤 추첨번호를 할당하시겠습니까?`,
+            async () => {
+                await proceedAssignLotteryNumbers(userIds);
+            },
+            () => {}
+        );
+        return;
+    }
+    
+    if (!confirm(`선택한 ${userIds.length}명의 참가자에게 추첨번호를 할당하시겠습니까?`)) {
+        return;
+    }
+    
+    await proceedAssignLotteryNumbers(userIds);
+}
+
+// 번호 할당 실행
+async function proceedAssignLotteryNumbers(userIds) {
+    const assignBtn = document.getElementById('assignNumbersBtn');
+    
+    if (!assignBtn) return;
+    
+    assignBtn.disabled = true;
+    assignBtn.innerHTML = '<i class="bi bi-shuffle"></i> 할당 중...';
+    
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+        
+        const response = await fetch('/api/admin/assign-lottery-numbers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('할당 완료', data.message || `추첨번호 ${data.assignedCount || 0}개가 할당되었습니다.`, () => {
+                    // 참가자 목록 새로고침
+                    const dateInput = document.getElementById('participantDate');
+                    if (dateInput && dateInput.value) {
+                        loadDailyParticipants();
+                    }
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `추첨번호 ${data.assignedCount || 0}개가 할당되었습니다.`);
+                const dateInput = document.getElementById('participantDate');
+                if (dateInput && dateInput.value) {
+                    loadDailyParticipants();
+                }
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '번호 할당에 실패했습니다.');
+            } else {
+                alert(data.message || '번호 할당에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('번호 할당 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '번호 할당 중 오류가 발생했습니다.');
+        } else {
+            alert('번호 할당 중 오류가 발생했습니다.');
+        }
+    } finally {
+        assignBtn.disabled = false;
+        assignBtn.innerHTML = '<i class="bi bi-shuffle"></i> 번호 할당';
+    }
+}
+
+// 할당된 번호 초기화
+async function resetAssignedNumbers() {
+    const checkboxes = document.querySelectorAll('.participant-checkbox:checked');
+    const userIds = checkboxes.length > 0 
+        ? Array.from(checkboxes).map(cb => parseInt(cb.value))
+        : null; // null이면 전체 초기화
+    
+    const targetText = userIds 
+        ? `선택한 ${userIds.length}명의 참가자`
+        : '모든 참가자';
+    
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '할당 번호 초기화',
+            `${targetText}에게 할당된 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`,
+            async () => {
+                await proceedResetAssignedNumbers(userIds);
+            },
+            () => {}
+        );
+        return;
+    }
+    
+    if (!confirm(`${targetText}에게 할당된 추첨번호를 삭제하시겠습니까?`)) {
+        return;
+    }
+    
+    await proceedResetAssignedNumbers(userIds);
+}
+
+// 할당 번호 초기화 실행
+async function proceedResetAssignedNumbers(userIds) {
+    const resetBtn = document.getElementById('resetAssignedNumbersBtn');
+    
+    if (!resetBtn) return;
+    
+    resetBtn.disabled = true;
+    resetBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화 중...';
+    
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+        
+        const response = await fetch('/api/admin/reset-assigned-numbers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('초기화 완료', data.message || `할당된 추첨번호 ${data.deletedCount || 0}개가 삭제되었습니다.`, () => {
+                    // 참가자 목록 새로고침
+                    const dateInput = document.getElementById('participantDate');
+                    if (dateInput && dateInput.value) {
+                        loadDailyParticipants();
+                    }
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `할당된 추첨번호 ${data.deletedCount || 0}개가 삭제되었습니다.`);
+                const dateInput = document.getElementById('participantDate');
+                if (dateInput && dateInput.value) {
+                    loadDailyParticipants();
+                }
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '할당 번호 초기화에 실패했습니다.');
+            } else {
+                alert(data.message || '할당 번호 초기화에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('할당 번호 초기화 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '할당 번호 초기화 중 오류가 발생했습니다.');
+        } else {
+            alert('할당 번호 초기화 중 오류가 발생했습니다.');
+        }
+    } finally {
+        resetBtn.disabled = false;
+        resetBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 할당 초기화';
+    }
+}
 
