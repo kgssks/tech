@@ -607,7 +607,8 @@ function getBoothName(boothCode) {
         'booth1': 'KB Agent 시연',
         'booth2': '바이브코딩 체험Zone',
         'booth3': 'AI기반 코드 어시스턴트 체험',
-        'booth4': 'IT-CoP 우수사례'
+        'booth4': 'IT-CoP 우수사례',
+        'booth5': 'AI AGENT 무한 가능성'
     };
     return boothNames[boothCode] || boothCode;
 }
