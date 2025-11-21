@@ -919,6 +919,7 @@ router.get('/daily-participants', verifyAdminToken, (req, res) => {
   // SQLite의 date() 함수를 사용하여 날짜 비교 (ISO 형식 타임스탬프 지원)
   // date() 함수는 'YYYY-MM-DD' 형식으로 변환하여 비교
   // 각 사용자의 최초 접근 시간도 함께 조회
+  // 랜딩페이지('/') 접속을 우선으로 하되, 없으면 해당 날짜의 첫 접속 시간을 사용
   db.all(`SELECT DISTINCT 
             u.id,
             u.empno,
@@ -927,21 +928,27 @@ router.get('/daily-participants', verifyAdminToken, (req, res) => {
             u.posname,
             ln.lottery_number,
             CASE WHEN pc.id IS NULL THEN '미수령' ELSE '수령완료' END as prize_status,
-            (SELECT MIN(wl2.timestamp) 
-             FROM web_logs wl2 
-             WHERE wl2.user_id = u.id 
-               AND wl2.path = '/' 
-               AND date(wl2.timestamp) = date(?)) as first_access_time
+            COALESCE(
+              (SELECT MIN(wl2.timestamp) 
+               FROM web_logs wl2 
+               WHERE wl2.user_id = u.id 
+                 AND wl2.path = '/' 
+                 AND date(wl2.timestamp) = date(?)),
+              (SELECT MIN(wl2.timestamp) 
+               FROM web_logs wl2 
+               WHERE wl2.user_id = u.id 
+                 AND date(wl2.timestamp) = date(?))
+            ) as first_access_time
           FROM web_logs wl
           JOIN users u ON wl.user_id = u.id
           LEFT JOIN lottery_numbers ln ON ln.user_id = u.id
           LEFT JOIN prize_claims pc ON pc.user_id = u.id
-          WHERE wl.path = '/' 
-            AND date(wl.timestamp) = date(?)
+          WHERE date(wl.timestamp) = date(?)
             AND wl.user_id IS NOT NULL
             AND (u.deleted = 0 OR u.deleted IS NULL)
+          GROUP BY u.id
           ORDER BY u.empname ASC`, 
-    [targetDate, targetDate], 
+    [targetDate, targetDate, targetDate], 
     (err, participants) => {
       if (err) {
         console.error('당일 참가자 조회 오류:', err);
