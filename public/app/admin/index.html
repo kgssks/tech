@@ -423,6 +423,129 @@
             margin: 2rem 0;
         }
         /* QR 스캔 모달 스타일 */
+        /* 추첨 방식 선택 */
+        .lottery-mode-selector {
+            display: flex;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
+        .lottery-mode-selector .btn-group .btn.active {
+            background: var(--kb-primary);
+            color: white;
+            border-color: var(--kb-primary);
+        }
+        /* 로또 추첨 스타일 */
+        .lotto-container {
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--kb-light) 0%, #ffffff 100%);
+            border-radius: 12px;
+            border: 3px solid var(--kb-primary);
+            margin: 2rem 0;
+        }
+        .lotto-balls-container {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+        .lotto-ball-wrapper {
+            text-align: center;
+        }
+        .lotto-ball-label {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--kb-gray);
+            margin-bottom: 1rem;
+        }
+        .lotto-ball {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), inset -10px -10px 20px rgba(0, 0, 0, 0.2), inset 10px 10px 20px rgba(255, 255, 255, 0.3);
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+        .lotto-ball::before {
+            content: ';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            top: 20%;
+            left: 20%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            filter: blur(5px);
+        }
+        .lotto-ball.spinning {
+            animation: lottoSpin 0.5s linear infinite;
+        }
+        .lotto-ball.revealed {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.8), 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        @keyframes lottoSpin {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .lotto-ball-number {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            position: relative;
+        }
+        .lotto-result-number {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(255, 188, 0, 0.1);
+            border-radius: 12px;
+            border: 2px solid var(--kb-primary);
+        }
+        .lotto-result-label {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--kb-gray);
+            margin-bottom: 1rem;
+        }
+        .lotto-result-digits {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .lotto-digit {
+            width: 100px;
+            height: 100px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--kb-primary) 0%, var(--kb-yellow-negative) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: digitReveal 0.5s ease-out;
+        }
+        @keyframes digitReveal {
+            from {
+                opacity: 0;
+                transform: scale(0.5) rotate(-180deg);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
         #admin-qr-reader {
             min-height: 300px;
         }
@@ -491,6 +614,19 @@
                     </div>
                 </div>
                 <div class="col-md-3">
+                
+                <!-- 추첨 방식 선택 -->
+                <div class="lottery-mode-selector mb-4">
+                    <div class="btn-group" role="group" aria-label="추첨 방식 선택">
+                        <button type="button" class="btn btn-outline-primary active" id="rouletteModeBtn" onclick="switchLotteryMode('roulette')">
+                            🎰 룰렛 추첨
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="lottoModeBtn" onclick="switchLotteryMode('lotto')">
+                            🎱 로또 추첨
+                        </button>
+                    </div>
+                </div>
+                
                     <div class="stat-card">
                         <div class="stat-label">모바일상품권 추첨대상</div>
                         <div class="stat-number" id="totalPrizes">0</div>
@@ -521,6 +657,39 @@
             </div>
 
             <!-- 테스트 데이터 생성 -->
+                
+                <!-- 로또 추첨 컨테이너 -->
+                <div class="lotto-container mb-4" id="lottoContainer" style="display: none;">
+                    <div class="lotto-balls-container">
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">백의자리</div>
+                            <div class="lotto-ball" id="lottoBall1">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">십의자리</div>
+                            <div class="lotto-ball" id="lottoBall2">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">일의자리</div>
+                            <div class="lotto-ball" id="lottoBall3">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lotto-result-number" id="lottoResultNumber" style="display: none;">
+                        <div class="lotto-result-label">당첨번호</div>
+                        <div class="lotto-result-digits">
+                            <span class="lotto-digit" id="lottoDigit1">-</span>
+                            <span class="lotto-digit" id="lottoDigit2">-</span>
+                            <span class="lotto-digit" id="lottoDigit3">-</span>
+                        </div>
+                    </div>
+                </div>
+                
             <div class="qr-section mb-4">
                 <h3>테스트 데이터 생성</h3>
                 <p class="text-muted">경품 추첨 기능 검증을 위한 가상 사용자 150명을 생성합니다.</p>
@@ -616,7 +785,7 @@
                 <p class="text-muted mb-3" id="lotteryInfo">전체 참여인원 확인 중...</p>
                 
                 <!-- 룰렛 컨테이너 -->
-                <div class="lottery-wheel-container mb-4">
+                <div class="lottery-wheel-container mb-4" id="rouletteContainer">
                     <div class="lottery-wheels-row">
                         <!-- 100자리 룰렛 -->
                         <div class="lottery-wheel-wrapper">

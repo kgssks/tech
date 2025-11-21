@@ -1130,7 +1130,7 @@ function resetLotteryWheels() {
 }
 
 // 경품 추첨 (룰렛 방식 - 랜덤 회전으로 당첨번호 결정)
-async function drawLottery() {
+async function drawLotteryRoulette() {
     const drawBtn = document.getElementById('drawLotteryBtn');
     const resultDiv = document.getElementById('lotteryResult');
     
@@ -2963,8 +2963,238 @@ function changeLogPage(page) {
     loadLogs();
 }
 
+// 로또 CSS 스타일 동적 추가
+function addLottoStyles() {
+    if (document.getElementById('lotto-dynamic-styles')) return; // 이미 추가됨
+    
+    const style = document.createElement('style');
+    style.id = 'lotto-dynamic-styles';
+    style.textContent = `
+        .lotto-drum {
+            width: 400px;
+            height: 400px;
+            margin: 2rem auto;
+            position: relative;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.1), 0 0 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        .lotto-drum::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+        .lotto-drum-ball {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), inset -5px -5px 10px rgba(0, 0, 0, 0.2), inset 5px 5px 10px rgba(255, 255, 255, 0.3);
+            z-index: 1;
+        }
+        .lotto-drum-ball::before {
+            content: '';
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            top: 20%;
+            left: 20%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            filter: blur(3px);
+        }
+        .lotto-extracted-ball {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), inset -5px -5px 10px rgba(0, 0, 0, 0.2), inset 5px 5px 10px rgba(255, 255, 255, 0.3);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .lotto-extracted-ball.extracting {
+            animation: extractBall 1.5s ease-out forwards;
+        }
+        @keyframes extractBall {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            50% { opacity: 1; transform: translate(0, -200px) scale(1.2); }
+            100% { opacity: 0; transform: translate(0, -250px) scale(1.5); }
+        }
+        .lotto-winner-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 1000;
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.95) 0%, rgba(68, 160, 141, 0.95) 100%);
+            border-radius: 20px;
+            padding: 3rem 4rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 4px solid white;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .lotto-winner-display.show {
+            animation: showWinnerDisplay 0.8s ease-out forwards;
+        }
+        @keyframes showWinnerDisplay {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-180deg); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(10deg); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+        }
+        .lotto-winner-number {
+            font-size: 8rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+        }
+        .lotto-winner-digit {
+            min-width: 120px;
+            text-align: center;
+            position: relative;
+        }
+        .lotto-winner-digit.spinning {
+            animation: digitSpin 0.1s linear infinite;
+        }
+        @keyframes digitSpin {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0); }
+        }
+        .lotto-winner-digit.revealed {
+            animation: digitRevealFinal 0.5s ease-out;
+        }
+        @keyframes digitRevealFinal {
+            0% { transform: scale(1.5) rotate(360deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes floatBall1 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(50px, -80px) rotate(90deg); }
+            50% { transform: translate(-30px, -120px) rotate(180deg); }
+            75% { transform: translate(-80px, -40px) rotate(270deg); }
+        }
+        @keyframes floatBall2 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-60px, 70px) rotate(-90deg); }
+            50% { transform: translate(40px, 100px) rotate(-180deg); }
+            75% { transform: translate(90px, 30px) rotate(-270deg); }
+        }
+        @keyframes floatBall3 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(70px, 50px) rotate(120deg); }
+            50% { transform: translate(-50px, 90px) rotate(240deg); }
+            75% { transform: translate(-70px, -60px) rotate(360deg); }
+        }
+        @keyframes floatBall4 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-40px, -90px) rotate(-120deg); }
+            50% { transform: translate(60px, -50px) rotate(-240deg); }
+            75% { transform: translate(80px, 70px) rotate(-360deg); }
+        }
+        @keyframes floatBall5 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(30px, 80px) rotate(60deg); }
+            50% { transform: translate(-70px, 40px) rotate(120deg); }
+            75% { transform: translate(50px, -70px) rotate(180deg); }
+        }
+        @keyframes floatBall6 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-80px, -30px) rotate(-60deg); }
+            50% { transform: translate(90px, -80px) rotate(-120deg); }
+            75% { transform: translate(-50px, 60px) rotate(-180deg); }
+        }
+        @keyframes floatBall7 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, -100px) rotate(150deg); }
+            50% { transform: translate(-90px, -20px) rotate(300deg); }
+            75% { transform: translate(70px, 80px) rotate(450deg); }
+        }
+        @keyframes floatBall8 {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-20px, 100px) rotate(-150deg); }
+            50% { transform: translate(100px, 20px) rotate(-300deg); }
+            75% { transform: translate(-70px, -80px) rotate(-450deg); }
+        }
+        .lotto-digit {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2), inset -10px -10px 20px rgba(0, 0, 0, 0.2), inset 10px 10px 20px rgba(255, 255, 255, 0.3);
+            animation: digitReveal 0.5s ease-out;
+            position: relative;
+        }
+        .lotto-digit::before {
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            top: 20%;
+            left: 20%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            filter: blur(5px);
+        }
+        @keyframes digitReveal {
+            from {
+                opacity: 0;
+                transform: scale(0.5) rotate(-180deg);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // 페이지 로드 시
 document.addEventListener('DOMContentLoaded', async () => {
+    // 로또 CSS 스타일 추가
+    addLottoStyles();
+    
     // 폼 제출 이벤트
     document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
         e.preventDefault();
@@ -3357,4 +3587,341 @@ async function proceedResetAssignedNumbers(userIds) {
         resetBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 할당 초기화';
     }
 }
+
+// 추첨 방식 전환 (룰렛/로또)
+let currentLotteryMode = 'roulette'; // 기본값: 룰렛
+
+function switchLotteryMode(mode) {
+    currentLotteryMode = mode;
+    const rouletteContainer = document.getElementById('rouletteContainer');
+    const lottoContainer = document.getElementById('lottoContainer');
+    const rouletteBtn = document.getElementById('rouletteModeBtn');
+    const lottoBtn = document.getElementById('lottoModeBtn');
+    
+    if (mode === 'roulette') {
+        if (rouletteContainer) rouletteContainer.style.display = 'flex';
+        if (lottoContainer) lottoContainer.style.display = 'none';
+        if (rouletteBtn) {
+            rouletteBtn.classList.add('active');
+        }
+        if (lottoBtn) {
+            lottoBtn.classList.remove('active');
+        }
+    } else if (mode === 'lotto') {
+        if (rouletteContainer) rouletteContainer.style.display = 'none';
+        if (lottoContainer) lottoContainer.style.display = 'block';
+        if (rouletteBtn) {
+            rouletteBtn.classList.remove('active');
+        }
+        if (lottoBtn) {
+            lottoBtn.classList.add('active');
+        }
+        // 로또 모드로 전환 시 HTML 구조 생성
+        initLottoContainerHTML();
+    }
+}
+
+// 로또 컨테이너 HTML 구조 동적 생성
+function initLottoContainerHTML() {
+    const lottoContainer = document.getElementById('lottoContainer');
+    if (!lottoContainer) return;
+    
+    // 이미 생성되어 있으면 스킵
+    if (document.getElementById('lottoDrum')) return;
+    
+    // 기존 구조 숨기기
+    const existingBalls = lottoContainer.querySelector('.lotto-balls-container');
+    if (existingBalls) {
+        existingBalls.style.display = 'none';
+    }
+    
+    // 새로운 구조 생성
+    const drum = document.createElement('div');
+    drum.className = 'lotto-drum';
+    drum.id = 'lottoDrum';
+    
+    const extractedBall = document.createElement('div');
+    extractedBall.className = 'lotto-extracted-ball';
+    extractedBall.id = 'lottoExtractedBall';
+    
+    const winnerDisplay = document.createElement('div');
+    winnerDisplay.className = 'lotto-winner-display';
+    winnerDisplay.id = 'lottoWinnerDisplay';
+    winnerDisplay.innerHTML = `
+        <div class="lotto-winner-number">
+            <span class="lotto-winner-digit" id="lottoWinnerDigit1">-</span>
+            <span class="lotto-winner-digit" id="lottoWinnerDigit2">-</span>
+            <span class="lotto-winner-digit" id="lottoWinnerDigit3">-</span>
+        </div>
+    `;
+    
+    // 추첨하기 버튼 생성 (로또 UI 아래)
+    const drawBtn = document.createElement('button');
+    drawBtn.className = 'btn btn-primary btn-lg';
+    drawBtn.id = 'drawLotteryLottoBtn';
+    drawBtn.textContent = '추첨하기';
+    drawBtn.onclick = () => drawLottery();
+    drawBtn.style.marginTop = '2rem';
+    drawBtn.style.width = '100%';
+    drawBtn.style.maxWidth = '400px';
+    drawBtn.style.margin = '2rem auto';
+    drawBtn.style.display = 'block';
+    
+    // 기존 결과 영역 앞에 삽입
+    const resultNumber = lottoContainer.querySelector('.lotto-result-number');
+    if (resultNumber) {
+        lottoContainer.insertBefore(drum, resultNumber);
+        lottoContainer.insertBefore(extractedBall, resultNumber);
+        lottoContainer.insertBefore(winnerDisplay, resultNumber);
+        lottoContainer.insertBefore(drawBtn, resultNumber);
+    } else {
+        lottoContainer.appendChild(drum);
+        lottoContainer.appendChild(extractedBall);
+        lottoContainer.appendChild(winnerDisplay);
+        lottoContainer.appendChild(drawBtn);
+    }
+}
+
+// 로또 통에 작은 공들 생성 및 애니메이션 초기화
+function initLottoDrum() {
+    const drum = document.getElementById('lottoDrum');
+    if (!drum) return;
+    
+    // 기존 공들 제거
+    drum.innerHTML = '';
+    
+    // 40개의 작은 공 생성 (랜덤 위치, 랜덤 숫자) - 2배 증가
+    const ballCount = 40;
+    const animations = ['floatBall1', 'floatBall2', 'floatBall3', 'floatBall4', 'floatBall5', 'floatBall6', 'floatBall7', 'floatBall8'];
+    
+    for (let i = 0; i < ballCount; i++) {
+        const ball = document.createElement('div');
+        ball.className = 'lotto-drum-ball';
+        
+        // 랜덤 숫자 (0-9)
+        const randomNum = Math.floor(Math.random() * 10);
+        ball.textContent = randomNum;
+        
+        // 랜덤 위치 (통 안쪽)
+        const angle = (Math.PI * 2 * i) / ballCount;
+        const radius = 120 + Math.random() * 80; // 120~200px 반경
+        const centerX = 200; // 통의 중심
+        const centerY = 200;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        
+        ball.style.left = `${x}px`;
+        ball.style.top = `${y}px`;
+        
+        // 랜덤 애니메이션 선택
+        const animIndex = Math.floor(Math.random() * animations.length);
+        const animName = animations[animIndex];
+        const animDuration = 3 + Math.random() * 2; // 3~5초
+        ball.style.animation = `${animName} ${animDuration}s ease-in-out infinite`;
+        
+        drum.appendChild(ball);
+    }
+}
+
+// 로또 방식 추첨
+async function drawLotteryLotto() {
+    // 로또 전용 버튼이 있으면 사용, 없으면 기존 버튼 사용
+    const drawBtn = document.getElementById('drawLotteryLottoBtn') || document.getElementById('drawLotteryBtn');
+    const resultDiv = document.getElementById('lotteryResult');
+    const lottoDrum = document.getElementById('lottoDrum');
+    const lottoExtractedBall = document.getElementById('lottoExtractedBall');
+    const lottoWinnerDisplay = document.getElementById('lottoWinnerDisplay');
+    const lottoWinnerDigit1 = document.getElementById('lottoWinnerDigit1');
+    const lottoWinnerDigit2 = document.getElementById('lottoWinnerDigit2');
+    const lottoWinnerDigit3 = document.getElementById('lottoWinnerDigit3');
+    const lottoResultNumber = document.getElementById('lottoResultNumber');
+    
+    // 버튼 비활성화
+    drawBtn.disabled = true;
+    drawBtn.textContent = '추첨 중...';
+    
+    // 결과 영역 초기화
+    resultDiv.innerHTML = '';
+    if (lottoResultNumber) lottoResultNumber.style.display = 'none';
+    if (lottoWinnerDisplay) {
+        lottoWinnerDisplay.classList.remove('show');
+        lottoWinnerDisplay.style.opacity = '0';
+    }
+    
+    // 로또 통 초기화
+    if (lottoDrum) {
+        initLottoDrum();
+    }
+    
+    try {
+        // 백엔드에서 발급된 번호 중 하나를 랜덤 선택
+        const selectResponse = await fetch('/api/prize/select-lottery-number');
+        const selectData = await selectResponse.json();
+        
+        if (!selectData.success) {
+            throw new Error(selectData.message || '추첨번호 선택에 실패했습니다.');
+        }
+        
+        const selectedNumber = selectData.lotteryNumber;
+        const digits = [
+            Math.floor(selectedNumber / 100),
+            Math.floor((selectedNumber % 100) / 10),
+            selectedNumber % 10
+        ];
+        
+        // 1.5초 대기 (통 안의 공들이 움직이는 모습 보여주기)
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // 2. 통에서 공이 위로 올라가는 애니메이션
+        if (lottoExtractedBall && lottoDrum) {
+            const drumRect = lottoDrum.getBoundingClientRect();
+            const centerX = drumRect.left + drumRect.width / 2;
+            const centerY = drumRect.top + drumRect.height / 2;
+            
+            lottoExtractedBall.style.left = `${centerX - 20}px`;
+            lottoExtractedBall.style.top = `${centerY - 20}px`;
+            lottoExtractedBall.style.position = 'fixed';
+            lottoExtractedBall.textContent = selectedNumber.toString().padStart(3, '0');
+            lottoExtractedBall.classList.add('extracting');
+            
+            // 애니메이션 완료 대기
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            lottoExtractedBall.classList.remove('extracting');
+        }
+        
+        // 3. 중앙에 확대 표시 영역 표시
+        if (lottoWinnerDisplay) {
+            lottoWinnerDisplay.classList.add('show');
+            
+            // 각 자릿수별로 순차적으로 숫자가 빠르게 바뀌다가 멈추는 연출
+            for (let i = 0; i < 3; i++) {
+                const digitEl = i === 0 ? lottoWinnerDigit1 : (i === 1 ? lottoWinnerDigit2 : lottoWinnerDigit3);
+                if (!digitEl) continue;
+                
+                // 스피닝 애니메이션 시작
+                digitEl.classList.add('spinning');
+                digitEl.textContent = '?';
+                
+                // 숫자가 빠르게 바뀌는 연출 (0.8초 동안)
+                const spinDuration = 800;
+                const spinInterval = 50; // 50ms마다 숫자 변경
+                const spinCount = spinDuration / spinInterval;
+                let currentSpin = 0;
+                
+                await new Promise(resolve => {
+                    const interval = setInterval(() => {
+                        if (currentSpin < spinCount) {
+                            // 0-9 사이 랜덤 숫자 표시
+                            digitEl.textContent = Math.floor(Math.random() * 10);
+                            currentSpin++;
+                        } else {
+                            clearInterval(interval);
+                            // 최종 숫자 표시
+                            digitEl.textContent = digits[i];
+                            digitEl.classList.remove('spinning');
+                            digitEl.classList.add('revealed');
+                            resolve();
+                        }
+                    }, spinInterval);
+                });
+                
+                // 각 자릿수 사이 약간의 대기
+                if (i < 2) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            
+            // 최종 결과 표시 유지 (2초)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // 중앙 표시 영역 숨기기
+            lottoWinnerDisplay.classList.remove('show');
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // 최종 결과 표시 (원형 공 형태로)
+        if (lottoResultNumber) {
+            const lottoDigit1 = document.getElementById('lottoDigit1');
+            const lottoDigit2 = document.getElementById('lottoDigit2');
+            const lottoDigit3 = document.getElementById('lottoDigit3');
+            
+            if (lottoDigit1) {
+                lottoDigit1.textContent = digits[0];
+                lottoDigit1.style.animation = 'digitReveal 0.5s ease-out';
+            }
+            if (lottoDigit2) {
+                lottoDigit2.textContent = digits[1];
+                lottoDigit2.style.animation = 'digitReveal 0.5s ease-out 0.1s both';
+            }
+            if (lottoDigit3) {
+                lottoDigit3.textContent = digits[2];
+                lottoDigit3.style.animation = 'digitReveal 0.5s ease-out 0.2s both';
+            }
+            lottoResultNumber.style.display = 'block';
+        }
+        
+        // 백엔드에 당첨번호 확인 요청
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        checkWinner(selectedNumber, (data) => {
+            const drawnNumberStr = selectedNumber.toString().padStart(3, '0');
+            
+            if (data.success) {
+                if (data.hasWinner) {
+                    resultDiv.innerHTML = `
+                        <div class="lottery-result">
+                            <div class="lottery-result-number">${drawnNumberStr}</div>
+                            <div class="lottery-result-winner">
+                                <h4>당첨자: ${data.winner.empname}</h4>
+                                <p>${data.winner.deptname} ${data.winner.posname || ''}</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="lottery-result" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                            <div class="lottery-result-number">${drawnNumberStr}</div>
+                            <div class="lottery-result-winner">
+                                <h4>해당 번호의 참가자가 없습니다.</h4>
+                                <p>다시 추첨해주세요.</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-error">${data.message || '추첨 확인 중 오류가 발생했습니다.'}</div>`;
+            }
+            
+            // 버튼 활성화
+            drawBtn.disabled = false;
+            drawBtn.textContent = '추첨하기';
+        });
+    } catch (error) {
+        console.error('로또 추첨 오류:', error);
+        resultDiv.innerHTML = '<div class="alert alert-error">추첨 중 오류가 발생했습니다.</div>';
+        
+        // 초기화
+        if (lottoWinnerDisplay) {
+            lottoWinnerDisplay.classList.remove('show');
+        }
+        if (lottoExtractedBall) {
+            lottoExtractedBall.classList.remove('extracting');
+        }
+        
+        drawBtn.disabled = false;
+        drawBtn.textContent = '추첨하기';
+    }
+}
+
+// drawLottery 함수를 모드에 따라 분기하는 함수로 재정의
+async function drawLottery() {
+    if (currentLotteryMode === 'lotto') {
+        await drawLotteryLotto();
+    } else {
+        await drawLotteryRoulette();
+    }
+}
+
+// 전역 함수 설정
+window.switchLotteryMode = switchLotteryMode;
 
