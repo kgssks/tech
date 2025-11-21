@@ -2306,19 +2306,6 @@ function spinWheels(targetDigits, callback) {
         const availableDigits = index === 0 ? lotteryDigits.hundreds : 
                                 index === 1 ? lotteryDigits.tens : lotteryDigits.ones;
         
-        // 현재 위치 가져오기
-        const currentTransform = window.getComputedStyle(wheelInner).transform;
-        let currentY = 0;
-        if (currentTransform && currentTransform !== 'none') {
-            const matrix = currentTransform.match(/matrix.*\((.+)\)/);
-            if (matrix && matrix[1]) {
-                const values = matrix[1].split(',');
-                if (values.length >= 6) {
-                    currentY = parseFloat(values[5]) || 0;
-                }
-            }
-        }
-        
         // 목표 숫자의 인덱스 찾기
         const targetIndex = availableDigits.indexOf(targetDigit);
         if (targetIndex === -1) {
@@ -2326,46 +2313,30 @@ function spinWheels(targetDigits, callback) {
             return;
         }
         
-        // 중앙 위치 계산 (200px 높이의 룰렛에서 중앙은 100px, 즉 2.5개 항목)
-        const centerOffset = -(itemHeight * 2.5);
+        // createWheelDOM과 동일한 방식으로 초기 위치 계산
+        const wheelHeight = 200;
+        const centerY = wheelHeight / 2;
+        const maxRepeatCount = 200; // 랜덤값의 2배 범위 (100 * 2 = 200)
+        const digitCount = availableDigits.length;
+        const topPaddingSets = Math.ceil(maxRepeatCount / digitCount / 2);
+        const paddingItemsCount = topPaddingSets * digitCount;
+        const centerItemIndex = paddingItemsCount;
+        const centerItemCenter = (centerItemIndex * itemHeight) + (itemHeight / 2);
+        const centerOffset = centerY - centerItemCenter;
+        const initialPosition = centerOffset;
         
         // 목표 숫자가 중앙에 오도록 하는 최종 위치 계산
-        // 첫 번째 반복 세트의 목표 숫자 위치
-        const targetPositionInFirstSet = -(targetIndex * itemHeight);
-        const finalPosition = targetPositionInFirstSet + centerOffset;
+        // processWheelCompletion과 동일한 방식
+        const finalNormalizedPosition = initialPosition - (targetIndex * itemHeight);
         
         // 회전할 총 거리 계산 (여러 바퀴 + 목표 위치까지)
         const spins = 5 + Math.random() * 3; // 5-8바퀴 추가 회전
-        const oneCycle = availableDigits.length * itemHeight;
+        const oneCycle = digitCount * itemHeight;
         const totalSpinDistance = spins * oneCycle;
         
-        // 회전할 총 거리 계산 (여러 바퀴 + 목표 위치까지)
-        // translateY 설명:
-        // - 음수값이 증가하면 (예: -100 -> -200) 요소가 위로 이동 (숫자가 위로 올라감)
-        // - 룰렛이 아래로 회전 = 숫자가 위로 올라감 = translateY가 더 음수가 됨
-        
-        // 목표: currentY에서 시작 -> 아래로 spins만큼 회전 -> finalPosition에 정확히 도달
-        // 아래로 회전하면 translateY가 totalSpinDistance만큼 더 음수가 됨
-        // 따라서: currentY - totalSpinDistance = finalPosition
-        // 즉, totalDistance = currentY - totalSpinDistance
-        
-        // 하지만 애니메이션은 currentY에서 totalDistance로 이동하므로:
-        // totalDistance = currentY - totalSpinDistance
-        // 이렇게 하면 currentY에서 시작해서 아래로 totalSpinDistance만큼 회전 후 finalPosition에 도달
-        
-        // 하지만 실제로는 currentY가 항상 finalPosition + totalSpinDistance가 아닐 수 있으므로
-        // 목표 위치를 기준으로 계산: finalPosition에서 위로 totalSpinDistance만큼 떨어진 위치에서 시작
-        // 즉: totalDistance = finalPosition - totalSpinDistance (아래로 회전)
-        // 하지만 이건 finalPosition에서 위로 totalSpinDistance만큼 떨어진 위치
-        
-        // 정확한 계산: 목표 위치에 정확히 도달하도록 회전 애니메이션 구현
-        // translateY는 위로 올라가면 더 음수가 됨 (예: -100 -> -200)
-        // 룰렛이 아래로 회전 = 숫자가 위로 올라감 = translateY가 더 음수가 됨
-        
-        // 목표: 여러 바퀴 회전 후 finalPosition에 정확히 도달
-        // 시작 위치를 finalPosition에서 위로 totalSpinDistance만큼 떨어진 위치로 설정
-        // 아래로 totalSpinDistance만큼 회전하면 finalPosition에 도달
-        const startPosition = finalPosition - totalSpinDistance;
+        // 시작 위치: 목표 위치에서 위로 totalSpinDistance만큼 떨어진 위치
+        // 아래로 totalSpinDistance만큼 회전하면 목표 위치에 도달
+        const startPosition = finalNormalizedPosition - totalSpinDistance;
         
         // 현재 위치를 즉시 조정 (애니메이션 없이)
         wheelInner.style.transition = 'none';
@@ -2381,7 +2352,7 @@ function spinWheels(targetDigits, callback) {
         setTimeout(() => {
             // CSS transition을 다시 활성화 (인라인 스타일 제거하여 CSS 클래스의 transition 사용)
             wheelInner.style.transition = '';
-            wheelInner.style.transform = `translateY(${finalPosition}px)`;
+            wheelInner.style.transform = `translateY(${finalNormalizedPosition}px)`;
         }, index * 100);
     });
     
@@ -2402,16 +2373,27 @@ function spinWheels(targetDigits, callback) {
                 return;
             }
             
+            // createWheelDOM과 동일한 방식으로 초기 위치 계산
             const itemHeight = 40;
-            const centerOffset = -(itemHeight * 2.5);
-            const targetPositionInFirstSet = -(targetIndex * itemHeight);
-            const finalPosition = targetPositionInFirstSet + centerOffset;
+            const wheelHeight = 200;
+            const centerY = wheelHeight / 2;
+            const maxRepeatCount = 200;
+            const digitCount = availableDigits.length;
+            const topPaddingSets = Math.ceil(maxRepeatCount / digitCount / 2);
+            const paddingItemsCount = topPaddingSets * digitCount;
+            const centerItemIndex = paddingItemsCount;
+            const centerItemCenter = (centerItemIndex * itemHeight) + (itemHeight / 2);
+            const centerOffset = centerY - centerItemCenter;
+            const initialPosition = centerOffset;
+            
+            // 목표 숫자가 중앙에 오도록 하는 최종 위치 계산
+            const finalNormalizedPosition = initialPosition - (targetIndex * itemHeight);
             
             // 정확한 위치로 재조정 (transition 없이 즉시)
             wheelInner.style.transition = 'none';
-            wheelInner.style.transform = `translateY(${finalPosition}px)`;
+            wheelInner.style.transform = `translateY(${finalNormalizedPosition}px)`;
             
-            // 강제 리플로우 후 다시 transition 활성화
+            // 강제 리플로우
             void wheelInner.offsetHeight;
             
             // 선택된 숫자 강조 및 반전 효과
@@ -2427,31 +2409,31 @@ function spinWheels(targetDigits, callback) {
                 
                 // 중앙에 있는 항목 찾기 (정확한 위치 계산)
                 const wheelRect = wheelInner.parentElement.getBoundingClientRect();
-                const centerY = wheelRect.top + wheelRect.height / 2;
+                const visualCenterY = wheelRect.top + wheelRect.height / 2;
                 
-                const items = wheelInner.querySelectorAll(`.wheel-item[data-digit="${targetDigit}"]`);
-                let closestItem = null;
-                let closestDistance = Infinity;
+                // 순환 처리된 숫자의 모든 항목 찾기
+                const sameDigitItems = wheelInner.querySelectorAll(`.wheel-item[data-digit="${targetDigit}"]`);
+                let selectedItem = null;
+                let minDistance = Infinity;
                 
-                items.forEach(item => {
+                sameDigitItems.forEach(item => {
                     const rect = item.getBoundingClientRect();
                     const itemCenterY = rect.top + rect.height / 2;
-                    const distance = Math.abs(itemCenterY - centerY);
+                    const distance = Math.abs(itemCenterY - visualCenterY);
                     
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestItem = item;
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        selectedItem = item;
                     }
                 });
                 
                 // 중앙에 가장 가까운 항목에 selected 클래스 추가 및 반전 효과 적용
-                if (closestItem && closestDistance < itemHeight / 2) {
-                    closestItem.classList.add('selected');
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
                     
-                    // 추가 반전 효과: 모든 같은 숫자 항목도 강조
-                    items.forEach(item => {
-                        if (item !== closestItem) {
-                            // 중앙이 아닌 같은 숫자 항목도 약간의 강조
+                    // 같은 숫자의 다른 항목도 약간 투명하게
+                    sameDigitItems.forEach(item => {
+                        if (item !== selectedItem) {
                             item.style.opacity = '0.6';
                         }
                     });
