@@ -187,7 +187,19 @@ async function requestGPSWithPermission() {
 // QR 스캔 제출 (전역 함수로 노출 - 먼저 선언)
 window.submitQRScan = async function(encryptedData) {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+        // 토큰이 없으면 인증 페이지로 이동
+        if (typeof showModal === 'function') {
+            showModal('인증 필요', '부스 참여를 위해 로그인이 필요합니다. 인증 페이지로 이동합니다.', () => {
+                window.location.href = '/app/event/auth.html';
+            });
+        } else {
+            if (confirm('부스 참여를 위해 로그인이 필요합니다. 인증 페이지로 이동하시겠습니까?')) {
+                window.location.href = '/app/event/auth.html';
+            }
+        }
+        return;
+    }
 
     // GPS 정보 수집
     let location = null;
@@ -237,10 +249,25 @@ window.submitQRScan = async function(encryptedData) {
                 await loadParticipationStatus();
             }
         } else {
-            if (typeof showModal === 'function') {
-                showModal('오류', data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+            // 인증 관련 오류인 경우 인증 페이지로 이동
+            if (response.status === 401 || data.message?.includes('인증') || data.message?.includes('로그인')) {
+                if (typeof showModal === 'function') {
+                    showModal('인증 만료', data.message || '인증이 만료되었습니다. 다시 로그인해주세요.', () => {
+                        removeToken();
+                        window.location.href = '/app/event/auth.html?returnUrl=' + encodeURIComponent(window.location.pathname);
+                    });
+                } else {
+                    if (confirm(data.message || '인증이 만료되었습니다. 다시 로그인하시겠습니까?')) {
+                        removeToken();
+                        window.location.href = '/app/event/auth.html?returnUrl=' + encodeURIComponent(window.location.pathname);
+                    }
+                }
             } else {
-                alert(data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+                if (typeof showModal === 'function') {
+                    showModal('오류', data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+                } else {
+                    alert(data.message || 'QR 코드 처리 중 오류가 발생했습니다.');
+                }
             }
         }
     } catch (error) {

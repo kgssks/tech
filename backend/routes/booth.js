@@ -4,6 +4,7 @@ const QRCode = require('qrcode');
 const { getDB } = require('../database');
 const { verifyToken, extractSecret } = require('../utils/jwt');
 const { generateQRData, verifyQRData, encrypt, decrypt } = require('../utils/encryption');
+const { log } = require('../utils/logger');
 
 // 인증 미들웨어
 function authenticate(req, res, next) {
@@ -90,10 +91,26 @@ router.post('/scan', authenticate, (req, res) => {
 
     // 사용자 정보 조회
     db.get('SELECT id FROM users WHERE token_secret = ?', [req.tokenSecret], (err, user) => {
-      if (err || !user) {
+      if (err) {
+        log.error('부스 스캔 중 사용자 조회 DB 오류', { 
+          err: err.message, 
+          boothCode,
+          tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+        });
         return res.status(500).json({
           success: false,
-          message: '사용자를 찾을 수 없습니다.'
+          message: '서버 오류가 발생했습니다. 다시 시도해주세요.'
+        });
+      }
+      
+      if (!user) {
+        log.warn('부스 스캔 중 사용자 조회 실패: token_secret 불일치', { 
+          boothCode,
+          tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+        });
+        return res.status(401).json({
+          success: false,
+          message: '인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.'
         });
       }
 
@@ -138,7 +155,10 @@ router.post('/scan', authenticate, (req, res) => {
       });
     });
   } catch (error) {
-    console.error('부스 스캔 오류:', error);
+    log.error('부스 스캔 처리 중 예외 발생', { 
+      error: error.message, 
+      stack: error.stack 
+    });
     res.status(500).json({
       success: false,
       message: '서버 오류가 발생했습니다.'
@@ -151,10 +171,24 @@ router.get('/participation', authenticate, (req, res) => {
   const db = getDB();
 
   db.get('SELECT id FROM users WHERE token_secret = ?', [req.tokenSecret], (err, user) => {
-    if (err || !user) {
+    if (err) {
+      log.error('부스 참여 현황 조회 중 사용자 조회 DB 오류', { 
+        err: err.message,
+        tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+      });
       return res.status(500).json({
         success: false,
-        message: '사용자를 찾을 수 없습니다.'
+        message: '서버 오류가 발생했습니다. 다시 시도해주세요.'
+      });
+    }
+    
+    if (!user) {
+      log.warn('부스 참여 현황 조회 중 사용자 조회 실패: token_secret 불일치', { 
+        tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+      });
+      return res.status(401).json({
+        success: false,
+        message: '인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.'
       });
     }
 
@@ -189,10 +223,24 @@ router.post('/generate-prize-qr', authenticate, (req, res) => {
     const db = getDB();
 
     db.get('SELECT id FROM users WHERE token_secret = ?', [req.tokenSecret], (err, user) => {
-      if (err || !user) {
+      if (err) {
+        log.error('경품 QR 생성 중 사용자 조회 DB 오류', { 
+          err: err.message,
+          tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+        });
         return res.status(500).json({
           success: false,
-          message: '사용자를 찾을 수 없습니다.'
+          message: '서버 오류가 발생했습니다. 다시 시도해주세요.'
+        });
+      }
+      
+      if (!user) {
+        log.warn('경품 QR 생성 중 사용자 조회 실패: token_secret 불일치', { 
+          tokenSecretPrefix: req.tokenSecret ? req.tokenSecret.substring(0, 8) + '...' : 'null'
+        });
+        return res.status(401).json({
+          success: false,
+          message: '인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.'
         });
       }
 
