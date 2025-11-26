@@ -6,13 +6,28 @@ let db;
 
 function init() {
   return new Promise((resolve, reject) => {
-    db = new sqlite3.Database(dbPath, (err) => {
+    // WAL 모드 활성화로 동시 읽기/쓰기 성능 향상
+    db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
       if (err) {
         console.error('데이터베이스 연결 오류:', err);
         reject(err);
       } else {
         console.log('SQLite 데이터베이스 연결됨');
-        createTables().then(resolve).catch(reject);
+        // WAL 모드 설정 (동시성 향상)
+        db.run('PRAGMA journal_mode = WAL', (err) => {
+          if (err) {
+            console.warn('WAL 모드 설정 실패 (계속 진행):', err);
+          } else {
+            console.log('WAL 모드 활성화됨 (동시성 향상)');
+          }
+          // 외래 키 제약 활성화
+          db.run('PRAGMA foreign_keys = ON', (err) => {
+            if (err) {
+              console.warn('외래 키 제약 활성화 실패:', err);
+            }
+            createTables().then(resolve).catch(reject);
+          });
+        });
       }
     });
   });
@@ -49,7 +64,8 @@ function createTables() {
         qr_data TEXT,
         latitude REAL,
         longitude REAL,
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, booth_code)
       )`);
       
       // GPS 정보 컬럼 추가 (마이그레이션)
@@ -68,7 +84,7 @@ function createTables() {
       // 경품 지급 테이블
       db.run(`CREATE TABLE IF NOT EXISTS prize_claims (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL UNIQUE,
         claimed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         qr_data TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id)

@@ -220,7 +220,9 @@ window.submitQRScan = async function(encryptedData) {
             requestBody.longitude = location.longitude;
         }
 
-        const response = await fetch(`/api/booth/scan`, {
+        // 재시도 로직이 포함된 fetch 사용
+        const fetchFn = typeof fetchWithRetry !== 'undefined' ? fetchWithRetry : fetch;
+        const response = await fetchFn(`/api/booth/scan`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -228,6 +230,10 @@ window.submitQRScan = async function(encryptedData) {
                 'kb-auth': `Bearer ${token}`
             },
             body: JSON.stringify(requestBody)
+        }, {
+            maxRetries: 3,
+            retryDelay: 1000,
+            timeout: 10000
         });
 
         const data = await response.json();
@@ -423,11 +429,17 @@ async function loadUserData() {
     }
 
     try {
-        const response = await fetch(`/api/data/user`, {
+        // 재시도 로직이 포함된 fetch 사용
+        const fetchFn = typeof fetchWithRetry !== 'undefined' ? fetchWithRetry : fetch;
+        const response = await fetchFn(`/api/data/user`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'kb-auth': `Bearer ${token}`
             }
+        }, {
+            maxRetries: 2,
+            retryDelay: 1000,
+            timeout: 10000
         });
 
         const data = await response.json();
@@ -830,7 +842,9 @@ async function submitLotteryQRScan(encryptedData) {
     }
 
     try {
-        const response = await fetch('/api/lottery/issue', {
+        // 재시도 로직이 포함된 fetch 사용
+        const fetchFn = typeof fetchWithRetry !== 'undefined' ? fetchWithRetry : fetch;
+        const response = await fetchFn('/api/lottery/issue', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

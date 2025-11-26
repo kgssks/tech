@@ -211,37 +211,78 @@ router.post('/issue', authenticate, (req, res) => {
             });
           };
 
-          findRandomAvailableNumber((err, nextNumber) => {
-            if (err) {
+          // 추첨번호 발급 시도 (최대 3회 재시도)
+          const tryIssueLotteryNumber = (retryCount = 0) => {
+            if (retryCount >= 3) {
               return res.status(500).json({
                 success: false,
-                message: err.message || '추첨번호 생성 중 오류가 발생했습니다.'
+                message: '추첨번호 발급에 실패했습니다. 잠시 후 다시 시도해주세요.'
               });
             }
 
-            db.run('INSERT INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
-              [user.id, nextNumber],
-              function (insertErr) {
-                if (insertErr) {
-                  return res.status(500).json({
-                    success: false,
-                    message: '추첨번호 저장 중 오류가 발생했습니다.'
-                  });
-                }
-
-                res.json({
-                  success: true,
-                  alreadyIssued: false,
-                  lotteryNumber: nextNumber,
-                  user: {
-                    empname: user.empname,
-                    deptname: user.deptname,
-                    posname: user.posname
-                  }
+            findRandomAvailableNumber((err, nextNumber) => {
+              if (err) {
+                return res.status(500).json({
+                  success: false,
+                  message: err.message || '추첨번호 생성 중 오류가 발생했습니다.'
                 });
               }
-            );
-          });
+
+              // INSERT OR IGNORE로 중복 방지 (UNIQUE 제약 활용)
+              // user_id가 이미 있으면 무시, lottery_number가 이미 있으면 재시도
+              db.run('INSERT OR IGNORE INTO lottery_numbers (user_id, lottery_number) VALUES (?, ?)',
+                [user.id, nextNumber],
+                function (insertErr) {
+                  if (insertErr) {
+                    // UNIQUE 제약 위반 시 재시도
+                    if (insertErr.code === 'SQLITE_CONSTRAINT_UNIQUE' || insertErr.message.includes('UNIQUE')) {
+                      console.log(`추첨번호 ${nextNumber} 중복 발생, 재시도 ${retryCount + 1}/3`);
+                      return tryIssueLotteryNumber(retryCount + 1);
+                    }
+                    return res.status(500).json({
+                      success: false,
+                      message: '추첨번호 저장 중 오류가 발생했습니다.'
+                    });
+                  }
+
+                  // INSERT OR IGNORE는 changes가 0이면 이미 존재하는 경우
+                  if (this.changes === 0) {
+                    // 이미 발급받은 경우 기존 번호 조회
+                    db.get('SELECT lottery_number FROM lottery_numbers WHERE user_id = ?', [user.id], (err, existing) => {
+                      if (err || !existing) {
+                        // 조회 실패 시 재시도
+                        return tryIssueLotteryNumber(retryCount + 1);
+                      }
+                      return res.json({
+                        success: true,
+                        alreadyIssued: true,
+                        lotteryNumber: existing.lottery_number,
+                        user: {
+                          empname: user.empname,
+                          deptname: user.deptname,
+                          posname: user.posname
+                        }
+                      });
+                    });
+                  } else {
+                    // 성공적으로 발급됨
+                    res.json({
+                      success: true,
+                      alreadyIssued: false,
+                      lotteryNumber: nextNumber,
+                      user: {
+                        empname: user.empname,
+                        deptname: user.deptname,
+                        posname: user.posname
+                      }
+                    });
+                  }
+                }
+              );
+            });
+          };
+
+          tryIssueLotteryNumber();
         });
       }
     );

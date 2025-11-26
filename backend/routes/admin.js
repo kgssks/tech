@@ -4,6 +4,12 @@ const bcrypt = require('bcryptjs');
 const { getDB } = require('../database');
 const { decrypt } = require('../utils/encryption');
 const { generateToken } = require('../utils/jwt');
+const { 
+  getActiveConnections, 
+  getIPStatistics, 
+  getPathStatistics, 
+  getPeakConcurrency 
+} = require('../utils/monitor');
 
 // 관리자 인증 미들웨어
 function authenticateAdmin(req, res, next) {
@@ -1486,7 +1492,7 @@ router.post('/generate-test-data', verifyAdminToken, async (req, res) => {
 });
 
 // 부스 참여 삭제 (사용안함 처리)
-router.post('/booth-participation/delete', (req, res) => {
+router.post('/booth-participation/delete', verifyAdminToken, (req, res) => {
   const { participationId } = req.body;
   const db = getDB();
 
@@ -1548,6 +1554,31 @@ router.post('/booth-participation/delete', (req, res) => {
           );
         }
       );
+    }
+  );
+});
+
+// 전체 부스 참여 삭제 (모든 부스 참여 기록을 사용안함 처리)
+router.post('/booth-participations/reset-all', verifyAdminToken, (req, res) => {
+  const db = getDB();
+
+  // 모든 유효한 부스 참여를 사용안함 처리
+  db.run(`UPDATE booth_participations SET deleted = 1 WHERE (deleted = 0 OR deleted IS NULL)`,
+    [],
+    function(updateErr) {
+      if (updateErr) {
+        console.error('전체 부스 참여 삭제 오류:', updateErr);
+        return res.status(500).json({
+          success: false,
+          message: '전체 부스 참여 삭제 중 오류가 발생했습니다.'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `전체 부스 참여 ${this.changes}건이 삭제되었습니다.`,
+        deletedCount: this.changes
+      });
     }
   );
 });
@@ -1651,6 +1682,35 @@ router.post('/delete-test-users', verifyAdminToken, (req, res) => {
       );
     }
   );
+});
+
+// 모니터링 통계 조회
+router.get('/monitor', verifyAdminToken, (req, res) => {
+  try {
+    const timeWindow = parseInt(req.query.timeWindow) || 60000; // 기본 1분
+    
+    const active = getActiveConnections();
+    const ipStats = getIPStatistics(timeWindow);
+    const pathStats = getPathStatistics(timeWindow);
+    const peak = getPeakConcurrency(timeWindow);
+    
+    res.json({
+      success: true,
+      monitor: {
+        activeConnections: active,
+        ipStatistics: ipStats,
+        pathStatistics: pathStats,
+        peakConcurrency: peak,
+        timeWindow
+      }
+    });
+  } catch (error) {
+    console.error('모니터링 통계 조회 오류:', error);
+    res.status(500).json({
+      success: false,
+      message: '모니터링 통계 조회 중 오류가 발생했습니다.'
+    });
+  }
 });
 
 module.exports = router;

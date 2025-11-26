@@ -2807,6 +2807,94 @@ async function deleteBoothParticipation(participationId, empname, boothCode) {
     }
 }
 
+// 전체 부스 참여 삭제
+async function resetAllBoothParticipations() {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '전체 부스 참여 삭제',
+            '모든 참가자의 부스 참여 기록을 삭제(사용안함) 처리하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 부스 참여 기록이 삭제됩니다.\n\n⚠️ 이 작업으로 인해 모든 참가자의 모바일상품권 추첨 자격이 상실됩니다.',
+            async () => {
+                await proceedResetAllBoothParticipations();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('모든 참가자의 부스 참여 기록을 삭제(사용안함) 처리하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 모든 부스 참여 기록이 삭제됩니다.\n\n⚠️ 이 작업으로 인해 모든 참가자의 모바일상품권 추첨 자격이 상실됩니다.')) {
+        return;
+    }
+    
+    await proceedResetAllBoothParticipations();
+}
+
+// 전체 부스 참여 삭제 실행
+async function proceedResetAllBoothParticipations() {
+    const btn = document.getElementById('resetAllBoothParticipationsBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-trash"></i> 삭제 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/booth-participations/reset-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('삭제 완료', data.message || `전체 부스 참여 ${data.deletedCount || 0}건이 삭제되었습니다.`, () => {
+                    // 부스 참여 목록 새로고침
+                    loadBoothParticipations();
+                    // 모바일상품권 추첨대상 목록도 새로고침
+                    loadPrizeEligible();
+                    // 경품 수령 기록도 새로고침
+                    loadPrizeClaims();
+                    // 사용자 목록도 새로고침
+                    loadUsers();
+                });
+            } else {
+                alert(data.message || `전체 부스 참여 ${data.deletedCount || 0}건이 삭제되었습니다.`);
+                loadBoothParticipations();
+                loadPrizeEligible();
+                loadPrizeClaims();
+                loadUsers();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '전체 부스 참여 삭제에 실패했습니다.');
+            } else {
+                alert(data.message || '전체 부스 참여 삭제에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('전체 부스 참여 삭제 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '전체 부스 참여 삭제 중 오류가 발생했습니다.');
+        } else {
+            alert('전체 부스 참여 삭제 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash"></i> 전체 부스 참여 삭제';
+    }
+}
+
 // 모바일상품권 추첨대상 삭제 함수
 async function deletePrizeEligible(userId, empname) {
     if (typeof showConfirmModal === 'function') {

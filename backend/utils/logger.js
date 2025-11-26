@@ -1,5 +1,6 @@
 const { getDB } = require('../database');
 const { verifyToken } = require('./jwt');
+const { trackConnectionStart, trackConnectionEnd } = require('./monitor');
 
 // 환경 변수에서 로그 설정 확인
 const ENABLE_CONSOLE_LOG = process.env.ENABLE_CONSOLE_LOG !== 'false'; // 기본값: true
@@ -224,9 +225,12 @@ function saveLog(logData) {
 function loggingMiddleware(req, res, next) {
   const startTime = Date.now();
   const originalSend = res.send;
-
-  // 요청 정보 수집
+  
+  // 모니터링: 연결 시작 추적
   const ipAddress = getClientIP(req);
+  const connectionId = trackConnectionStart(ipAddress, req.path || req.url.split('?')[0]);
+
+  // 요청 정보 수집 (ipAddress는 이미 위에서 선언됨)
   const userAgent = req.headers['user-agent'] || 'unknown';
   const method = req.method;
   const path = req.path || req.url.split('?')[0];
@@ -260,6 +264,9 @@ function loggingMiddleware(req, res, next) {
       }
     }
 
+    // 모니터링: 연결 종료 추적
+    trackConnectionEnd(connectionId, statusCode);
+    
     // 사용자 정보 조회 후 로그 저장
     getUserInfoSync(req, (userInfo) => {
       saveLog({

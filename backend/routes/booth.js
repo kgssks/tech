@@ -133,15 +133,32 @@ router.post('/scan', authenticate, (req, res) => {
           });
         }
 
-        // 참여 기록 저장 (GPS 정보 포함)
-        db.run(`INSERT INTO booth_participations (user_id, booth_code, qr_data, latitude, longitude)
+        // 참여 기록 저장 (GPS 정보 포함) - INSERT OR IGNORE로 중복 방지
+        db.run(`INSERT OR IGNORE INTO booth_participations (user_id, booth_code, qr_data, latitude, longitude)
                 VALUES (?, ?, ?, ?, ?)`,
           [user.id, boothCode, encryptedData, latitude || null, longitude || null],
           function(err) {
             if (err) {
+              // UNIQUE 제약 위반은 이미 참여한 것으로 처리
+              if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.message.includes('UNIQUE')) {
+                return res.json({
+                  success: true,
+                  message: '이미 참여한 부스입니다.',
+                  alreadyParticipated: true
+                });
+              }
               return res.status(500).json({
                 success: false,
                 message: '참여 기록 저장 중 오류가 발생했습니다.'
+              });
+            }
+
+            // INSERT OR IGNORE는 changes가 0이면 이미 존재하는 경우
+            if (this.changes === 0) {
+              return res.json({
+                success: true,
+                message: '이미 참여한 부스입니다.',
+                alreadyParticipated: true
               });
             }
 

@@ -98,8 +98,8 @@ router.post('/check-winner', (req, res) => {
           }
 
           if (!existing) {
-            // 경품 수령 기록 추가
-            db.run('INSERT INTO prize_claims (user_id) VALUES (?)', [winner.user_id], (insertErr) => {
+            // 경품 수령 기록 추가 (INSERT OR IGNORE로 중복 방지)
+            db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [winner.user_id], (insertErr) => {
               if (insertErr) {
                 console.error('경품 수령 기록 추가 오류:', insertErr);
                 // 기록 추가 실패해도 당첨 결과는 반환
@@ -303,16 +303,23 @@ router.post('/draw-bulk', (req, res) => {
       const existingUserIds = existingClaims ? existingClaims.map(c => c.user_id) : [];
       const newClaimUserIds = winnerUserIds.filter(id => !existingUserIds.includes(id));
 
-      // 새로 수령할 사용자들만 기록 추가
+      // 새로 수령할 사용자들만 기록 추가 (INSERT OR IGNORE로 중복 방지)
       if (newClaimUserIds.length > 0) {
         // 각 사용자별로 개별 INSERT (SQLite에서 여러 VALUES 지원하지만 안전하게 개별 처리)
         let insertCount = 0;
+        let completedCount = 0;
         newClaimUserIds.forEach(userId => {
-          db.run('INSERT INTO prize_claims (user_id) VALUES (?)', [userId], (insertErr) => {
+          db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [userId], (insertErr) => {
             if (insertErr) {
               console.error('경품 수령 기록 추가 오류:', insertErr);
+            } else {
+              insertCount++;
             }
-            insertCount++;
+            completedCount++;
+            // 모든 INSERT 완료 후 응답
+            if (completedCount === newClaimUserIds.length) {
+              // 응답은 이미 위에서 처리됨
+            }
           });
         });
       }
