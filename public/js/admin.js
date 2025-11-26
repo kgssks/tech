@@ -1498,6 +1498,88 @@ async function proceedResetLotteryNumbers() {
     }
 }
 
+// 관리자 발급 추첨번호 초기화
+async function resetAdminIssuedLotteryNumbers() {
+    if (typeof showConfirmModal === 'function') {
+        showConfirmModal(
+            '경품 추첨 번호 발급 초기화',
+            '관리자들이 테스트로 QR을 찍어서 발급받은 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 관리자 계정으로 발급된 추첨번호만 삭제됩니다.',
+            async () => {
+                await proceedResetAdminIssuedLotteryNumbers();
+            },
+            () => {
+                // 취소 처리 없음
+            }
+        );
+        return;
+    }
+    
+    if (!confirm('관리자들이 테스트로 QR을 찍어서 발급받은 추첨번호를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 관리자 계정으로 발급된 추첨번호만 삭제됩니다.')) {
+        return;
+    }
+    
+    await proceedResetAdminIssuedLotteryNumbers();
+}
+
+// 관리자 발급 추첨번호 초기화 실행
+async function proceedResetAdminIssuedLotteryNumbers() {
+    const btn = document.getElementById('resetAdminIssuedLotteryNumbersBtn');
+    
+    if (!btn) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화 중...';
+
+    try {
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            throw new Error('관리자 로그인이 필요합니다.');
+        }
+
+        const response = await fetch('/api/admin/lottery-numbers/reset-admin-issued', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            if (typeof showModal === 'function') {
+                showModal('초기화 완료', data.message || `관리자 발급 추첨번호 ${data.deletedCount || 0}건이 초기화되었습니다.`, () => {
+                    // 추첨번호 현황 새로고침
+                    loadLotteryNumbers();
+                    // 룰렛 정보도 새로고침
+                    initLotteryWheels();
+                });
+            } else {
+                alert(data.message || `관리자 발급 추첨번호 ${data.deletedCount || 0}건이 초기화되었습니다.`);
+                loadLotteryNumbers();
+                initLotteryWheels();
+            }
+        } else {
+            if (typeof showModal === 'function') {
+                showModal('오류', data.message || '관리자 발급 추첨번호 초기화에 실패했습니다.');
+            } else {
+                alert(data.message || '관리자 발급 추첨번호 초기화에 실패했습니다.');
+            }
+        }
+    } catch (error) {
+        console.error('관리자 발급 추첨번호 초기화 오류:', error);
+        if (typeof showModal === 'function') {
+            showModal('오류', '관리자 발급 추첨번호 초기화 중 오류가 발생했습니다.');
+        } else {
+            alert('관리자 발급 추첨번호 초기화 중 오류가 발생했습니다.');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> 초기화';
+    }
+}
+
 // 경품 추첨 테스트 대상자 생성
 async function generateLotteryTestUsers() {
     const countInput = document.getElementById('lotteryTestUserCount');

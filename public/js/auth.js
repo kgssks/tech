@@ -39,15 +39,33 @@ async function checkAuth() {
             }
         });
 
+        // HTTP 상태 코드 확인
+        if (response.status === 401) {
+            // 실제 토큰 만료 또는 유효하지 않은 경우에만 토큰 삭제
+            removeToken();
+            return null;
+        }
+
+        if (!response.ok) {
+            // 서버 오류(500 등)인 경우 토큰은 유지하고 null 반환
+            console.warn('인증 확인 서버 오류:', response.status);
+            return null;
+        }
+
         const data = await response.json();
         if (data.success) {
             return data.user;
         } else {
-            removeToken();
+            // success가 false인 경우에도 상태 코드 확인
+            if (response.status === 401) {
+                removeToken();
+            }
             return null;
         }
     } catch (error) {
+        // 네트워크 오류나 기타 오류인 경우 토큰은 유지
         console.error('인증 확인 오류:', error);
+        // 네트워크 오류는 토큰을 삭제하지 않음 (일시적 오류일 수 있음)
         return null;
     }
 }

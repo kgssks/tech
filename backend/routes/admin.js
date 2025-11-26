@@ -616,6 +616,80 @@ router.post('/lottery-numbers/reset', verifyAdminToken, (req, res) => {
   });
 });
 
+// 관리자 발급 추첨번호 초기화 (관리자들이 테스트로 QR을 찍어서 발급받은 추첨번호만 삭제)
+router.post('/lottery-numbers/reset-admin-issued', verifyAdminToken, (req, res) => {
+  const db = getDB();
+
+  // 1. admins 테이블에서 모든 관리자 username 목록 가져오기
+  db.all('SELECT username FROM admins', [], (err, admins) => {
+    if (err) {
+      console.error('관리자 목록 조회 오류:', err);
+      return res.status(500).json({
+        success: false,
+        message: '관리자 목록 조회 중 오류가 발생했습니다.'
+      });
+    }
+
+    if (!admins || admins.length === 0) {
+      return res.json({
+        success: true,
+        message: '삭제할 관리자 발급 추첨번호가 없습니다.',
+        deletedCount: 0
+      });
+    }
+
+    const adminUsernames = admins.map(admin => admin.username);
+
+    // 2. users 테이블에서 해당 empno를 가진 사용자들의 ID 찾기
+    const placeholders = adminUsernames.map(() => '?').join(',');
+    db.all(
+      `SELECT id FROM users WHERE empno IN (${placeholders}) AND (deleted = 0 OR deleted IS NULL)`,
+      adminUsernames,
+      (err, users) => {
+        if (err) {
+          console.error('관리자 사용자 조회 오류:', err);
+          return res.status(500).json({
+            success: false,
+            message: '관리자 사용자 조회 중 오류가 발생했습니다.'
+          });
+        }
+
+        if (!users || users.length === 0) {
+          return res.json({
+            success: true,
+            message: '삭제할 관리자 발급 추첨번호가 없습니다.',
+            deletedCount: 0
+          });
+        }
+
+        const userIds = users.map(user => user.id);
+
+        // 3. lottery_numbers 테이블에서 해당 사용자 ID들의 추첨번호 삭제
+        const userPlaceholders = userIds.map(() => '?').join(',');
+        db.run(
+          `DELETE FROM lottery_numbers WHERE user_id IN (${userPlaceholders})`,
+          userIds,
+          function(deleteErr) {
+            if (deleteErr) {
+              console.error('관리자 발급 추첨번호 삭제 오류:', deleteErr);
+              return res.status(500).json({
+                success: false,
+                message: '관리자 발급 추첨번호 삭제 중 오류가 발생했습니다.'
+              });
+            }
+
+            res.json({
+              success: true,
+              message: `관리자 발급 추첨번호 ${this.changes}건이 초기화되었습니다.`,
+              deletedCount: this.changes
+            });
+          }
+        );
+      }
+    );
+  });
+});
+
 // 경품 추첨 테스트 대상자 생성 (테스트 유저 생성 + 추첨번호 발급)
 router.post('/generate-lottery-test-users', verifyAdminToken, async (req, res) => {
   const db = getDB();

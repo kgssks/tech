@@ -471,7 +471,7 @@
             transition: transform 0.3s ease;
         }
         .lotto-ball::before {
-            content: ';
+            content: '';
             position: absolute;
             width: 40%;
             height: 40%;
@@ -870,6 +870,17 @@
                                     <h5 class="card-title">추첨번호</h5>
                                     <p class="card-text text-muted small">현장 QR 인증으로 발급된 모든 추첨번호를 삭제합니다.</p>
                                     <button class="btn btn-warning btn-sm w-100" id="resetLotteryNumbersBtn" onclick="resetLotteryNumbers()">
+                                        <i class="bi bi-arrow-counterclockwise"></i> 초기화
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">경품 추첨 번호 발급 초기화</h5>
+                                    <p class="card-text text-muted small">테스트로 QR을 찍어본 관리자들의 QR 발급 이력을 삭제합니다.</p>
+                                    <button class="btn btn-warning btn-sm w-100" id="resetAdminIssuedLotteryNumbersBtn" onclick="resetAdminIssuedLotteryNumbers()">
                                         <i class="bi bi-arrow-counterclockwise"></i> 초기화
                                     </button>
                                 </div>
