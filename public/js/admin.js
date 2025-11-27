@@ -1405,7 +1405,9 @@ async function drawBulkLotteryPrizeEligible(count = 30) {
             const item = document.createElement('div');
             item.className = 'bulk-lottery-item';
             
-            const numberStr = String(winner.lottery_number).padStart(3, '0');
+            const numberStr = winner.lottery_number 
+                ? String(winner.lottery_number).padStart(3, '0')
+                : '-';
             const empName = winner.empname || '미확인';
             const dept = winner.deptname || '-';
             const pos = winner.posname || '';

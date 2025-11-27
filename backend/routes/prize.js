@@ -70,14 +70,16 @@ router.post('/check-winner', (req, res) => {
     });
   }
 
-  // 해당 번호의 사용자 정보 조회 (경품 미수령자만)
+  // 해당 번호의 사용자 정보 조회 (경품 미수령자만, 100~999 범위만)
   db.get(`SELECT u.id as user_id, u.empname, u.deptname, u.posname, ln.lottery_number
           FROM lottery_numbers ln
           JOIN users u ON ln.user_id = u.id
           LEFT JOIN prize_claims pc ON pc.user_id = u.id
           WHERE ln.lottery_number = ?
             AND (u.deleted = 0 OR u.deleted IS NULL)
-            AND pc.id IS NULL`,
+            AND pc.id IS NULL
+            AND ln.lottery_number >= 100
+            AND ln.lottery_number <= 999`,
     [drawnNumber], (err, winner) => {
       if (err) {
         return res.status(500).json({
@@ -107,13 +109,15 @@ router.post('/check-winner', (req, res) => {
             });
           }
 
-          // 경품 미수령 참가자 수 확인 (표시용)
+          // 경품 미수령 참가자 수 확인 (표시용, 100~999 범위만)
           db.get(`SELECT COUNT(*) as count 
                   FROM lottery_numbers ln
                   JOIN users u ON ln.user_id = u.id
                   LEFT JOIN prize_claims pc ON pc.user_id = u.id
                   WHERE (u.deleted = 0 OR u.deleted IS NULL)
-                    AND pc.id IS NULL`, (err, countResult) => {
+                    AND pc.id IS NULL
+                    AND ln.lottery_number >= 100
+                    AND ln.lottery_number <= 999`, (err, countResult) => {
             const participantCount = countResult ? countResult.count : 0;
 
             res.json({
@@ -131,13 +135,15 @@ router.post('/check-winner', (req, res) => {
           });
         });
       } else {
-        // 당첨자가 없는 경우
+        // 당첨자가 없는 경우 (100~999 범위만)
         db.get(`SELECT COUNT(*) as count 
                 FROM lottery_numbers ln
                 JOIN users u ON ln.user_id = u.id
                 LEFT JOIN prize_claims pc ON pc.user_id = u.id
                 WHERE (u.deleted = 0 OR u.deleted IS NULL)
-                  AND pc.id IS NULL`, (err, countResult) => {
+                  AND pc.id IS NULL
+                  AND ln.lottery_number >= 100
+                  AND ln.lottery_number <= 999`, (err, countResult) => {
           const participantCount = countResult ? countResult.count : 0;
 
           res.json({
@@ -252,7 +258,7 @@ router.post('/draw-bulk', (req, res) => {
     });
   }
 
-  // 추첨 대상자 조회 (QR 인증을 통해 추첨번호를 발급받은 모든 사용자)
+  // 추첨 대상자 조회 (QR 인증을 통해 추첨번호를 발급받은 사용자, 100~999 범위만)
   const query = `
     SELECT 
       u.id AS user_id,
@@ -266,6 +272,8 @@ router.post('/draw-bulk', (req, res) => {
     LEFT JOIN prize_claims pc ON pc.user_id = u.id
     WHERE (u.deleted = 0 OR u.deleted IS NULL)
       AND pc.id IS NULL
+      AND ln.lottery_number >= 100
+      AND ln.lottery_number <= 999
   `;
 
   db.all(query, [], (err, rows) => {
@@ -355,7 +363,8 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
     });
   }
 
-  // 추첨 대상자 조회 (부스 3개 이상 참여 + 추첨번호 발급 + 경품 미수령)
+  // 추첨 대상자 조회 (부스 3개 이상 참여 + 경품 미수령)
+  // 주의: 현장QR 발급번호 조건 없음 (추첨번호가 없어도 추첨 가능)
   const query = `
     SELECT 
       u.id AS user_id,
@@ -365,9 +374,9 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
       u.posname,
       ln.lottery_number,
       COUNT(bp.id) as booth_count
-    FROM lottery_numbers ln
-    JOIN users u ON ln.user_id = u.id
+    FROM users u
     INNER JOIN booth_participations bp ON u.id = bp.user_id
+    LEFT JOIN lottery_numbers ln ON ln.user_id = u.id
     LEFT JOIN prize_claims pc ON pc.user_id = u.id
     WHERE (u.deleted = 0 OR u.deleted IS NULL)
       AND (bp.deleted = 0 OR bp.deleted IS NULL)
@@ -428,7 +437,7 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
       }
 
       const winners = selectedWinners.map(row => ({
-        lottery_number: row.lottery_number,
+        lottery_number: row.lottery_number || null, // 추첨번호가 없을 수 있음
         empname: row.empname,
         empno: row.empno,
         deptname: row.deptname,
