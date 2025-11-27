@@ -3,8 +3,12 @@
 # dependencies
 /node_modules/
 
-
+forum.db
+forum.db-shm
+forum.db-wal
 *.db
+*.db-shm
+*.db-wal
 
 
 # Logs
