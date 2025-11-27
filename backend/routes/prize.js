@@ -15,12 +15,13 @@ router.get('/select-lottery-number', (req, res) => {
   const db = getDB();
 
   // 경품 미수령자 중 발급된 추첨번호 중 하나를 랜덤으로 선택
+  // 주의: 모바일상품권 수령자는 제외하지 않음 (모바일상품권은 독립적)
   db.all(`SELECT ln.lottery_number
           FROM lottery_numbers ln
           JOIN users u ON ln.user_id = u.id
           LEFT JOIN prize_claims pc ON pc.user_id = u.id
           WHERE (u.deleted = 0 OR u.deleted IS NULL)
-            AND pc.id IS NULL
+            AND (pc.id IS NULL OR pc.prize_type = 'mobile_gift_30')
             AND ln.lottery_number >= 100
             AND ln.lottery_number <= 999
           ORDER BY RANDOM()
@@ -71,13 +72,14 @@ router.post('/check-winner', (req, res) => {
   }
 
   // 해당 번호의 사용자 정보 조회 (경품 미수령자만, 100~999 범위만)
+  // 주의: 모바일상품권 수령자는 제외하지 않음 (모바일상품권은 독립적)
   db.get(`SELECT u.id as user_id, u.empname, u.deptname, u.posname, ln.lottery_number
           FROM lottery_numbers ln
           JOIN users u ON ln.user_id = u.id
           LEFT JOIN prize_claims pc ON pc.user_id = u.id
           WHERE ln.lottery_number = ?
             AND (u.deleted = 0 OR u.deleted IS NULL)
-            AND pc.id IS NULL
+            AND (pc.id IS NULL OR pc.prize_type = 'mobile_gift_30')
             AND ln.lottery_number >= 100
             AND ln.lottery_number <= 999`,
     [drawnNumber], (err, winner) => {
@@ -91,7 +93,10 @@ router.post('/check-winner', (req, res) => {
       // 당첨자가 있으면 자동으로 경품 수령 처리
       if (winner && winner.user_id) {
         // 이미 수령했는지 다시 확인 (동시성 문제 방지)
-        db.get('SELECT id FROM prize_claims WHERE user_id = ?', [winner.user_id], (err, existing) => {
+        // 주의: 모바일상품권 수령자는 제외하지 않음 (모바일상품권은 독립적)
+        db.get(`SELECT id FROM prize_claims 
+                WHERE user_id = ? 
+                AND (prize_type IS NULL OR prize_type != 'mobile_gift_30')`, [winner.user_id], (err, existing) => {
           if (err) {
             return res.status(500).json({
               success: false,
@@ -110,12 +115,13 @@ router.post('/check-winner', (req, res) => {
           }
 
           // 경품 미수령 참가자 수 확인 (표시용, 100~999 범위만)
+          // 주의: 모바일상품권 수령자는 포함 (모바일상품권은 독립적)
           db.get(`SELECT COUNT(*) as count 
                   FROM lottery_numbers ln
                   JOIN users u ON ln.user_id = u.id
                   LEFT JOIN prize_claims pc ON pc.user_id = u.id
                   WHERE (u.deleted = 0 OR u.deleted IS NULL)
-                    AND pc.id IS NULL
+                    AND (pc.id IS NULL OR pc.prize_type = 'mobile_gift_30')
                     AND ln.lottery_number >= 100
                     AND ln.lottery_number <= 999`, (err, countResult) => {
             const participantCount = countResult ? countResult.count : 0;
@@ -136,12 +142,13 @@ router.post('/check-winner', (req, res) => {
         });
       } else {
         // 당첨자가 없는 경우 (100~999 범위만)
+        // 주의: 모바일상품권 수령자는 포함 (모바일상품권은 독립적)
         db.get(`SELECT COUNT(*) as count 
                 FROM lottery_numbers ln
                 JOIN users u ON ln.user_id = u.id
                 LEFT JOIN prize_claims pc ON pc.user_id = u.id
                 WHERE (u.deleted = 0 OR u.deleted IS NULL)
-                  AND pc.id IS NULL
+                  AND (pc.id IS NULL OR pc.prize_type = 'mobile_gift_30')
                   AND ln.lottery_number >= 100
                   AND ln.lottery_number <= 999`, (err, countResult) => {
           const participantCount = countResult ? countResult.count : 0;
@@ -259,6 +266,7 @@ router.post('/draw-bulk', (req, res) => {
   }
 
   // 추첨 대상자 조회 (QR 인증을 통해 추첨번호를 발급받은 사용자, 100~999 범위만)
+  // 주의: 모바일상품권 수령자는 제외하지 않음 (모바일상품권은 독립적)
   const query = `
     SELECT 
       u.id AS user_id,
@@ -271,7 +279,7 @@ router.post('/draw-bulk', (req, res) => {
     JOIN users u ON ln.user_id = u.id
     LEFT JOIN prize_claims pc ON pc.user_id = u.id
     WHERE (u.deleted = 0 OR u.deleted IS NULL)
-      AND pc.id IS NULL
+      AND (pc.id IS NULL OR pc.prize_type = 'mobile_gift_30')
       AND ln.lottery_number >= 100
       AND ln.lottery_number <= 999
   `;
@@ -301,8 +309,10 @@ router.post('/draw-bulk', (req, res) => {
     const winnerUserIds = selectedWinners.map(row => row.user_id);
     const placeholders = winnerUserIds.map(() => '(?)').join(',');
     
-    // 먼저 이미 수령한 사용자 확인
-    db.all(`SELECT user_id FROM prize_claims WHERE user_id IN (${placeholders})`, winnerUserIds, (err, existingClaims) => {
+    // 먼저 이미 수령한 사용자 확인 (모바일상품권 수령자는 제외하지 않음)
+    db.all(`SELECT user_id FROM prize_claims 
+            WHERE user_id IN (${placeholders})
+            AND (prize_type IS NULL OR prize_type != 'mobile_gift_30')`, winnerUserIds, (err, existingClaims) => {
       if (err) {
         console.error('경품 수령 기록 확인 오류:', err);
         // 오류가 나도 추첨 결과는 반환
@@ -364,8 +374,9 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
     });
   }
 
-  // 추첨 대상자 조회 (부스 3개 이상 참여 + 경품 미수령)
+  // 추첨 대상자 조회 (부스 3개 이상 참여 + 모바일상품권 미수령)
   // 주의: 현장QR 발급번호 조건 없음 (추첨번호가 없어도 추첨 가능)
+  // 주의: 룰렛/로또/10명 추첨 수령자는 포함 (모바일상품권은 독립적)
   const query = `
     SELECT 
       u.id AS user_id,
@@ -381,7 +392,7 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
     LEFT JOIN prize_claims pc ON pc.user_id = u.id
     WHERE (u.deleted = 0 OR u.deleted IS NULL)
       AND (bp.deleted = 0 OR bp.deleted IS NULL)
-      AND pc.id IS NULL
+      AND (pc.id IS NULL OR pc.prize_type != 'mobile_gift_30')
     GROUP BY u.id, u.empno, u.empname, u.deptname, u.posname, ln.lottery_number
     HAVING COUNT(bp.id) >= 3
   `;
@@ -411,8 +422,10 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
     const winnerUserIds = selectedWinners.map(row => row.user_id);
     const placeholders = winnerUserIds.map(() => '(?)').join(',');
     
-    // 먼저 이미 수령한 사용자 확인
-    db.all(`SELECT user_id FROM prize_claims WHERE user_id IN (${placeholders})`, winnerUserIds, (err, existingClaims) => {
+    // 먼저 이미 모바일상품권을 수령한 사용자 확인 (룰렛/로또/10명 추첨 수령자는 제외하지 않음)
+    db.all(`SELECT user_id FROM prize_claims 
+            WHERE user_id IN (${placeholders})
+            AND prize_type = 'mobile_gift_30'`, winnerUserIds, (err, existingClaims) => {
       if (err) {
         console.error('경품 수령 기록 확인 오류:', err);
         // 오류가 나도 추첨 결과는 반환
