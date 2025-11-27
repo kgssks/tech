@@ -1,5 +1,5 @@
 let adminAuthenticated = false;
-let surveyChart = null;
+// let surveyChart = null; // 설문 기능 사용 안 함
 let boothChart = null;
 
 // 관리자 토큰 관리
@@ -103,12 +103,12 @@ async function adminLogin() {
 // 대시보드 로드
 async function loadDashboard() {
     await loadStats();
-    await loadSurveyData();
+    // await loadSurveyData(); // 설문 기능 사용 안 함
     await loadBoothData();
     await loadUsers();
     await loadBoothParticipations();
     await loadPrizeClaims(); // 탭에서 추첨 자격자 목록 로드
-    await loadSurveys();
+    // await loadSurveys(); // 설문 기능 사용 안 함
     await initLotteryWheels(); // 룰렛 초기화
     // 로그는 탭 클릭 시 로드
 }
@@ -291,7 +291,7 @@ async function loadStats() {
 
         if (data.success) {
             document.getElementById('totalUsers').textContent = data.data.totalUsers || 0;
-            document.getElementById('totalSurveys').textContent = data.data.totalSurveys || 0;
+            // document.getElementById('totalSurveys').textContent = data.data.totalSurveys || 0; // 설문 기능 사용 안 함
             document.getElementById('totalPrizes').textContent = data.data.totalPrizes || 0;
             
             const totalBooths = data.data.boothStats.reduce((sum, stat) => sum + stat.count, 0);
@@ -302,7 +302,8 @@ async function loadStats() {
     }
 }
 
-// 설문 데이터 로드 및 차트 생성 (5점 척도 통합 설문)
+// 설문 데이터 로드 및 차트 생성 (5점 척도 통합 설문) - 사용 안 함
+/*
 async function loadSurveyData() {
     try {
         const response = await fetch(`/api/admin/surveys`);
@@ -411,6 +412,7 @@ async function loadSurveyData() {
         console.error('설문 데이터 로드 오류:', error);
     }
 }
+*/
 
 // 부스 데이터 로드 및 차트 생성 (바 차트)
 async function loadBoothData() {
@@ -615,6 +617,8 @@ function getBoothName(boothCode) {
 }
 
 // 통합설문 QR 코드 생성
+// 통합설문 QR 생성 함수 - 사용 안 함
+/*
 async function generateSurveyQR() {
     try {
         const response = await fetch(`/api/survey/generate-qr`, {
@@ -645,6 +649,7 @@ async function generateSurveyQR() {
         }
     }
 }
+*/
 
 // 현장 참여 추첨번호 발급 QR (고정 QR)
 async function generateLotteryIssueQR() {
@@ -1333,7 +1338,6 @@ async function drawBulkLottery(count = 10) {
         }
     }
 }
-
 // 모바일 상품권 추첨대상 30명 추첨
 async function drawBulkLotteryPrizeEligible(count = 30) {
     const drawBtn = document.getElementById('drawBulkLotteryPrizeEligibleBtn');
@@ -3084,7 +3088,8 @@ async function deletePrizeEligible(userId, empname) {
     }
 }
 
-// 설문 응답 로드 (5점 척도 통합 설문)
+// 설문 응답 로드 (5점 척도 통합 설문) - 사용 안 함
+/*
 async function loadSurveys() {
     try {
         const response = await fetch(`/api/admin/surveys`);
@@ -3144,6 +3149,7 @@ async function loadSurveys() {
         console.error('설문 응답 로드 오류:', error);
     }
 }
+*/
 
 // 로그아웃
 function logout() {
@@ -3514,9 +3520,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 case '#lottery-numbers':
                     await loadLotteryNumbers();
                     break;
-                case '#surveys':
-                    await loadSurveys();
-                    break;
+                // case '#surveys': // 설문 기능 사용 안 함
+                //     await loadSurveys();
+                //     break;
                 case '#logs':
                     // loadLogs()는 이미 onclick으로 연결되어 있지만, 탭 클릭 시에도 호출
                     await loadLogs();

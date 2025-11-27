@@ -624,12 +624,15 @@
                         <div class="stat-number" id="totalUsers">0</div>
                     </div>
                 </div>
+                <!-- 설문 참여 통계 카드 (사용 안 함) -->
+                <!--
                 <div class="col-md-3">
                     <div class="stat-card">
                         <div class="stat-label">설문 참여</div>
                         <div class="stat-number" id="totalSurveys">0</div>
                     </div>
                 </div>
+                -->
                 <div class="col-md-3">
                     <div class="stat-card">
                         <div class="stat-label">모바일상품권 추첨대상</div>
@@ -646,13 +649,16 @@
 
             <!-- 설문 결과 및 부스 참여 현황 차트 (같은 로우에 좌우 배치) -->
             <div class="row">
+                <!-- 설문 결과 차트 (사용 안 함) -->
+                <!--
                 <div class="col-md-6">
                     <div class="chart-container">
                         <h3>설문 결과</h3>
                         <canvas id="surveyChart"></canvas>
                     </div>
                 </div>
-                <div class="col-md-6">
+                -->
+                <div class="col-md-12">
                     <div class="chart-container">
                         <h3>부스별 참여 현황</h3>
                         <canvas id="boothChart"></canvas>
@@ -992,13 +998,15 @@
                 </div>
             </div>
 
-            <!-- 통합설문 QR -->
+            <!-- 통합설문 QR (사용 안 함) -->
+            <!--
             <div class="qr-section mb-4">
                 <h3>통합설문 QR</h3>
                 <p class="text-muted mb-3">5점 척도 통합 설문 QR 코드 생성</p>
                 <button class="btn btn-primary" onclick="generateSurveyQR()">통합설문 QR 생성</button>
                 <div id="surveyQRDisplay" class="qr-code-display mt-2"></div>
             </div>
+            -->
 
             <!-- 현장 참여 QR (추첨번호 발급) -->
             <div class="qr-section mb-4">
@@ -1025,9 +1033,12 @@
                 <li class="nav-item">
                     <a class="nav-link" data-bs-toggle="tab" href="#lottery-numbers">추첨번호 현황</a>
                 </li>
+                <!-- 설문 응답 탭 (사용 안 함) -->
+                <!--
                 <li class="nav-item">
                     <a class="nav-link" data-bs-toggle="tab" href="#surveys">설문 응답</a>
                 </li>
+                -->
                 <li class="nav-item">
                     <a class="nav-link" data-bs-toggle="tab" href="#logs">웹로그</a>
                 </li>
@@ -1151,6 +1162,8 @@
                         </table>
                     </div>
                 </div>
+                <!-- 설문 응답 탭 내용 (사용 안 함) -->
+                <!--
                 <div class="tab-pane fade" id="surveys">
                     <div class="table-responsive">
                         <table class="table table-striped">
@@ -1170,6 +1183,7 @@
                         </table>
                     </div>
                 </div>
+                -->
                 <div class="tab-pane fade" id="logs">
                     <div class="mb-3">
                         <h4>로그 필터</h4>
