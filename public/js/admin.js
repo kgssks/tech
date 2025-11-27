@@ -2818,6 +2818,64 @@ async function loadPrizeClaims() {
     }
 }
 
+// 총 수령 현황 로드
+async function loadPrizeClaimsAll() {
+    try {
+        const response = await fetch(`/api/admin/prize-claims`);
+        const data = await response.json();
+
+        if (data.success) {
+            const tbody = document.getElementById('prizeClaimsTableBody');
+            if (data.claims && data.claims.length > 0) {
+                tbody.innerHTML = data.claims.map(claim => {
+                    // 추첨 타입에 따라 배지 색상과 텍스트 설정
+                    let typeBadge = '';
+                    const prizeType = claim.prize_type || '';
+                    
+                    switch(prizeType) {
+                        case 'roulette_lotto':
+                            typeBadge = '<span class="badge bg-primary">룰렛/로또</span>';
+                            break;
+                        case 'bulk_10':
+                            typeBadge = '<span class="badge bg-info">10명 추첨</span>';
+                            break;
+                        case 'mobile_gift_30':
+                            typeBadge = '<span class="badge bg-warning text-dark">모바일상품권</span>';
+                            break;
+                        default:
+                            typeBadge = '<span class="badge bg-secondary">기타</span>';
+                    }
+                    
+                    const lotteryNumber = claim.lottery_number 
+                        ? String(claim.lottery_number).padStart(3, '0')
+                        : '-';
+                    const claimedAt = claim.claimed_at 
+                        ? new Date(claim.claimed_at).toLocaleString('ko-KR')
+                        : '-';
+                    
+                    return `
+                        <tr>
+                            <td>${typeBadge}</td>
+                            <td><strong>${lotteryNumber}</strong></td>
+                            <td>${claim.empno || '-'}</td>
+                            <td>${claim.empname || '-'}</td>
+                            <td>${claim.deptname || '-'}</td>
+                            <td>${claim.posname || '-'}</td>
+                            <td>${claimedAt}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">수령자가 없습니다.</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('총 수령 현황 로드 오류:', error);
+        const tbody = document.getElementById('prizeClaimsTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+    }
+}
+
 // 현장 QR 추첨번호 발급 현황 로드
 async function loadLotteryNumbers() {
     try {
@@ -3551,6 +3609,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     break;
                 case '#lottery-numbers':
                     await loadLotteryNumbers();
+                    break;
+                case '#prize-claims':
+                    await loadPrizeClaimsAll();
                     break;
                 // case '#surveys': // 설문 기능 사용 안 함
                 //     await loadSurveys();

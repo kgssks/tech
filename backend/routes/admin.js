@@ -522,12 +522,23 @@ router.get('/prize-eligible', (req, res) => {
 router.get('/prize-claims', (req, res) => {
   const db = getDB();
 
-  db.all(`SELECT u.empname, u.deptname, u.posname, pc.claimed_at
+  db.all(`SELECT 
+            u.id,
+            u.empno,
+            u.empname, 
+            u.deptname, 
+            u.posname, 
+            pc.claimed_at,
+            pc.prize_type,
+            ln.lottery_number
           FROM prize_claims pc
           JOIN users u ON pc.user_id = u.id
+          LEFT JOIN lottery_numbers ln ON ln.user_id = u.id
+          WHERE (u.deleted = 0 OR u.deleted IS NULL)
           ORDER BY pc.claimed_at DESC`,
     (err, claims) => {
       if (err) {
+        console.error('경품 지급 현황 조회 오류:', err);
         return res.status(500).json({
           success: false,
           message: '서버 오류가 발생했습니다.'
