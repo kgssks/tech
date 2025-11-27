@@ -3624,10 +3624,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // 오늘 날짜를 기본값으로 설정
+    // 오늘 날짜를 기본값으로 설정 (한국 시간대 기준)
     const dateInput = document.getElementById('participantDate');
     if (dateInput && !dateInput.value) {
-        const today = new Date().toISOString().split('T')[0];
+        // 한국 시간대(UTC+9) 기준으로 오늘 날짜 계산
+        const now = new Date();
+        const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+        const year = koreaTime.getUTCFullYear();
+        const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreaTime.getUTCDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
         dateInput.value = today;
     }
 });
@@ -3642,9 +3648,15 @@ async function loadDailyParticipants() {
     
     if (!dateInput || !listDiv) return;
     
-    // 날짜가 없으면 오늘 날짜로 설정
+    // 날짜가 없으면 오늘 날짜로 설정 (한국 시간대 기준)
     if (!dateInput.value) {
-        const today = new Date().toISOString().split('T')[0];
+        // 한국 시간대(UTC+9) 기준으로 오늘 날짜 계산
+        const now = new Date();
+        const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+        const year = koreaTime.getUTCFullYear();
+        const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(koreaTime.getUTCDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
         dateInput.value = today;
     }
     

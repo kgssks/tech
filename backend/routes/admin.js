@@ -1007,15 +1007,25 @@ router.post('/delete-lottery-test-users', verifyAdminToken, (req, res) => {
 // 당일 랜딩페이지 접속 사용자 조회 (웹로그 기반)
 router.get('/daily-participants', verifyAdminToken, (req, res) => {
   const db = getDB();
-  const { date } = req.query; // YYYY-MM-DD 형식, 없으면 오늘 날짜
+  const { date } = req.query; // YYYY-MM-DD 형식, 없으면 오늘 날짜 (한국 시간대 기준)
   
-  // 날짜 설정 (기본값: 오늘)
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  // 날짜 설정 (기본값: 오늘, 한국 시간대 기준)
+  let targetDate = date;
+  if (!targetDate) {
+    // 한국 시간대(UTC+9) 기준으로 오늘 날짜 계산
+    const now = new Date();
+    const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+    const year = koreaTime.getUTCFullYear();
+    const month = String(koreaTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(koreaTime.getUTCDate()).padStart(2, '0');
+    targetDate = `${year}-${month}-${day}`;
+  }
   
-  // SQLite의 date() 함수를 사용하여 날짜 비교 (ISO 형식 타임스탬프 지원)
-  // date() 함수는 'YYYY-MM-DD' 형식으로 변환하여 비교
-  // 각 사용자의 최초 접근 시간도 함께 조회
-  // 랜딩페이지('/') 접속을 우선으로 하되, 없으면 해당 날짜의 첫 접속 시간을 사용
+  // 한국 시간대(KST, UTC+9) 기준으로 날짜 비교
+  // 타임스탬프는 UTC로 저장되므로, 한국 날짜와 비교하려면 시간대 변환 필요
+  // 예: 2025-11-28 00:00:00 KST = 2025-11-27 15:00:00 UTC
+  //     2025-11-28 23:59:59 KST = 2025-11-28 14:59:59 UTC
+  // SQLite의 datetime() 함수로 한국 시간대로 변환 후 날짜 추출
   db.all(`SELECT DISTINCT 
             u.id,
             u.empno,
@@ -1029,17 +1039,17 @@ router.get('/daily-participants', verifyAdminToken, (req, res) => {
                FROM web_logs wl2 
                WHERE wl2.user_id = u.id 
                  AND wl2.path = '/' 
-                 AND date(wl2.timestamp) = date(?)),
+                 AND strftime('%Y-%m-%d', datetime(wl2.timestamp, '+9 hours')) = ?),
               (SELECT MIN(wl2.timestamp) 
                FROM web_logs wl2 
                WHERE wl2.user_id = u.id 
-                 AND date(wl2.timestamp) = date(?))
+                 AND strftime('%Y-%m-%d', datetime(wl2.timestamp, '+9 hours')) = ?)
             ) as first_access_time
           FROM web_logs wl
           JOIN users u ON wl.user_id = u.id
           LEFT JOIN lottery_numbers ln ON ln.user_id = u.id
           LEFT JOIN prize_claims pc ON pc.user_id = u.id
-          WHERE date(wl.timestamp) = date(?)
+          WHERE strftime('%Y-%m-%d', datetime(wl.timestamp, '+9 hours')) = ?
             AND wl.user_id IS NOT NULL
             AND (u.deleted = 0 OR u.deleted IS NULL)
           GROUP BY u.id

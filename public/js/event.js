@@ -926,7 +926,7 @@ async function loadLotteryNumber() {
         if (data.success && data.lotteryNumber) {
             setLotteryDisplay(data.lotteryNumber, '이미 추첨번호를 발급받으셨습니다.', false);
         } else {
-            setLotteryDisplay(null, '현장 추첨 QR을 스캔하여 추첨번호를 발급받으세요.', true);
+            setLotteryDisplay(null, '현장 QR을 카메라 앱으로 스캔하여 추첨번호를 발급받으세요.', true);
         }
     } catch (error) {
         console.error('추첨 번호 로드 오류:', error);
