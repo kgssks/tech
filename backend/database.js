@@ -13,19 +13,42 @@ function init() {
         reject(err);
       } else {
         console.log('SQLite 데이터베이스 연결됨');
-        // WAL 모드 설정 (동시성 향상)
-        db.run('PRAGMA journal_mode = WAL', (err) => {
+        
+        // 먼저 무결성 검사
+        db.get('PRAGMA integrity_check', (err, result) => {
           if (err) {
-            console.warn('WAL 모드 설정 실패 (계속 진행):', err);
-          } else {
-            console.log('WAL 모드 활성화됨 (동시성 향상)');
+            console.error('⚠️  데이터베이스 무결성 검사 실패:', err.message);
+            // 무결성 검사 실패해도 계속 진행 (복구 시도)
+          } else if (result && result.integrity_check !== 'ok') {
+            console.error('⚠️  데이터베이스 무결성 문제 발견:', result.integrity_check);
+            console.error('   복구 스크립트 실행 권장: node scripts/db-recover.js');
+            // 문제가 있어도 계속 진행 (서버는 시작되지만 쿼리 실패 가능)
           }
-          // 외래 키 제약 활성화
-          db.run('PRAGMA foreign_keys = ON', (err) => {
+          
+          // WAL 모드 설정 (동시성 향상)
+          db.run('PRAGMA journal_mode = WAL', (err, result) => {
             if (err) {
-              console.warn('외래 키 제약 활성화 실패:', err);
+              console.warn('WAL 모드 설정 실패 (계속 진행):', err);
+            } else {
+              console.log('WAL 모드 활성화됨 (동시성 향상)');
+              
+              // WAL 파일이 있으면 체크포인트 시도 (안전하게 WAL 내용을 메인 DB로 병합)
+              db.run('PRAGMA wal_checkpoint(TRUNCATE)', (err) => {
+                if (err) {
+                  console.warn('WAL 체크포인트 실패 (무시):', err.message);
+                } else {
+                  console.log('WAL 체크포인트 완료');
+                }
+              });
             }
-            createTables().then(resolve).catch(reject);
+            
+            // 외래 키 제약 활성화
+            db.run('PRAGMA foreign_keys = ON', (err) => {
+              if (err) {
+                console.warn('외래 키 제약 활성화 실패:', err);
+              }
+              createTables().then(resolve).catch(reject);
+            });
           });
         });
       }
