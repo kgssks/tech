@@ -120,6 +120,34 @@
 
     // 초기 상태 확인
     fetchCurrentLotteryNumber();
+
+    // URL 파라미터에 QR 데이터가 있고 로그인되어 있으면 자동으로 번호 발급 시도
+    if (qrData) {
+        const token = getToken();
+        if (token) {
+            // 로그인 완료 후 자동 발급
+            // 약간의 지연을 두어 페이지 로드 완료 후 실행
+            setTimeout(async () => {
+                // 이미 번호가 발급되었는지 확인
+                try {
+                    const response = await fetch('/api/data/lottery-number', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'kb-auth': `Bearer ${token}`
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    // 번호가 없으면 자동 발급
+                    if (!data.success || !data.lotteryNumber) {
+                        await issueLotteryNumber();
+                    }
+                } catch (error) {
+                    console.error('자동 발급 확인 오류:', error);
+                }
+            }, 500);
+        }
+    }
 })();
 
 

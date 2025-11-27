@@ -828,7 +828,10 @@ function handleQRScanResult(decodedText) {
 async function submitLotteryQRScan(encryptedData) {
     const token = getToken();
     if (!token) {
-        window.location.href = '/app/event/auth.html';
+        // 로그인 안 된 상태에서 QR 스캔 시, QR 데이터를 URL 파라미터로 전달하여 로그인 페이지로 이동
+        // 로그인 후 자동으로 번호 발급되도록 함
+        const returnUrl = `/app/event/lottery/?data=${encodeURIComponent(encryptedData)}`;
+        window.location.href = `/app/event/auth.html?returnUrl=${encodeURIComponent(returnUrl)}`;
         return;
     }
 
