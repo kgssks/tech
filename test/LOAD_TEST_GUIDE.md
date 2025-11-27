@@ -1,3 +1,17 @@
+<!-- 실행해보기
+서버 실행
+   npm start
+간단한 테스트 (10명)
+   node test/load-test-real.js --users=10
+결과 확인 후 점진적으로 증가
+   # 50명
+   node test/load-test-real.js --users=50
+
+   # 100명
+   node test/load-test-real.js --users=100
+자세한 내용은 test/LOAD_TEST_GUIDE.md 파일을 참고하세요.
+실행 중 문제가 있으면 알려주세요. -->
+
 # 부하 테스트 실행 가이드
 
 ## 📋 목차

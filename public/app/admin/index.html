@@ -436,6 +436,10 @@
         }
         /* 로또 추첨 스타일 */
         .lotto-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             padding: 2rem;
             background: linear-gradient(135deg, var(--kb-light) 0%, #ffffff 100%);
             border-radius: 12px;
@@ -614,19 +618,6 @@
                     </div>
                 </div>
                 <div class="col-md-3">
-                
-                <!-- 추첨 방식 선택 -->
-                <div class="lottery-mode-selector mb-4">
-                    <div class="btn-group" role="group" aria-label="추첨 방식 선택">
-                        <button type="button" class="btn btn-outline-primary active" id="rouletteModeBtn" onclick="switchLotteryMode('roulette')">
-                            🎰 룰렛 추첨
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="lottoModeBtn" onclick="switchLotteryMode('lotto')">
-                            🎱 로또 추첨
-                        </button>
-                    </div>
-                </div>
-                
                     <div class="stat-card">
                         <div class="stat-label">모바일상품권 추첨대상</div>
                         <div class="stat-number" id="totalPrizes">0</div>
@@ -656,127 +647,21 @@
                 </div>
             </div>
 
-            <!-- 테스트 데이터 생성 -->
-                
-                <!-- 로또 추첨 컨테이너 -->
-                <div class="lotto-container mb-4" id="lottoContainer" style="display: none;">
-                    <div class="lotto-balls-container">
-                        <div class="lotto-ball-wrapper">
-                            <div class="lotto-ball-label">백의자리</div>
-                            <div class="lotto-ball" id="lottoBall1">
-                                <div class="lotto-ball-number">?</div>
-                            </div>
-                        </div>
-                        <div class="lotto-ball-wrapper">
-                            <div class="lotto-ball-label">십의자리</div>
-                            <div class="lotto-ball" id="lottoBall2">
-                                <div class="lotto-ball-number">?</div>
-                            </div>
-                        </div>
-                        <div class="lotto-ball-wrapper">
-                            <div class="lotto-ball-label">일의자리</div>
-                            <div class="lotto-ball" id="lottoBall3">
-                                <div class="lotto-ball-number">?</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="lotto-result-number" id="lottoResultNumber" style="display: none;">
-                        <div class="lotto-result-label">당첨번호</div>
-                        <div class="lotto-result-digits">
-                            <span class="lotto-digit" id="lottoDigit1">-</span>
-                            <span class="lotto-digit" id="lottoDigit2">-</span>
-                            <span class="lotto-digit" id="lottoDigit3">-</span>
-                        </div>
-                    </div>
-                </div>
-                
-            <div class="qr-section mb-4">
-                <h3>테스트 데이터 생성</h3>
-                <p class="text-muted">경품 추첨 기능 검증을 위한 가상 사용자 150명을 생성합니다.</p>
-                <div class="d-flex gap-2 mb-3">
-                    <button class="btn btn-warning" id="generateTestDataBtn" onclick="generateTestData()">
-                        테스트 사용자 150명 생성
-                    </button>
-                    <button class="btn btn-danger" id="deleteTestDataBtn" onclick="deleteTestUsers()">
-                        테스트사용자 삭제
-                    </button>
-                </div>
-                <div id="testDataResult" class="mt-3" style="display: none;"></div>
-            </div>
-
-            <!-- QR 코드 생성 -->
-            <div class="qr-section">
-                <h3>부스 QR 코드 생성</h3>
-                <div class="row">
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth1')">부스1 QR 생성</button>
-                        <div id="booth1QR" class="qr-code-display mt-2"></div>
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth2')">부스2 QR 생성</button>
-                        <div id="booth2QR" class="qr-code-display mt-2"></div>
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth3')">부스3 QR 생성</button>
-                        <div id="booth3QR" class="qr-code-display mt-2"></div>
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth4')">부스4 QR 생성</button>
-                        <div id="booth4QR" class="qr-code-display mt-2"></div>
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth5')">부스5 QR 생성</button>
-                        <div id="booth5QR" class="qr-code-display mt-2"></div>
-                    </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth6')">부스6 QR 생성</button>
-                        <div id="booth6QR" class="qr-code-display mt-2"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- QR 코드 팝업 모달 -->
-            <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="qrCodeModalLabel">부스 QR 코드</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body text-center">
-                            <canvas id="qrCodeCanvas" style="max-width: 100%; height: auto;"></canvas>
-                            <div class="mt-3">
-                                <button class="btn btn-primary" onclick="downloadQRCode()">
-                                    <i class="bi bi-download"></i> PNG 다운로드
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 통합설문 QR -->
-            <div class="qr-section">
-                <h3>통합설문 QR</h3>
-                <p class="text-muted mb-3">5점 척도 통합 설문 QR 코드 생성</p>
-                <button class="btn btn-primary" onclick="generateSurveyQR()">통합설문 QR 생성</button>
-                <div id="surveyQRDisplay" class="qr-code-display mt-2"></div>
-            </div>
-
-            <!-- 현장 참여 QR (추첨번호 발급) -->
-            <div class="qr-section">
-                <h3>현장 참여 QR (추첨번호 발급)</h3>
-                <p class="text-muted mb-3">
-                    행사 현장에서만 노출할 QR 코드입니다. 참가자가 해당 QR을 스캔하고 로그인하면 추첨번호가 발급됩니다.
-                    (고정 QR - 유효시간 없음)
-                </p>
-                <button class="btn btn-primary" onclick="generateLotteryIssueQR()">현장 참여 QR 생성</button>
-                <div id="lotteryIssueQRDisplay" class="qr-code-display mt-3"></div>
-            </div>
-
             <!-- 경품 추첨 -->
             <div class="lottery-section">
                 <h3>경품 추첨</h3>
+                
+                <!-- 추첨 방식 선택 -->
+                <div class="lottery-mode-selector mb-4">
+                    <div class="btn-group" role="group" aria-label="추첨 방식 선택">
+                        <button type="button" class="btn btn-outline-primary active" id="rouletteModeBtn" onclick="switchLotteryMode('roulette')">
+                            🎰 룰렛 추첨
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" id="lottoModeBtn" onclick="switchLotteryMode('lotto')">
+                            🎱 로또 추첨
+                        </button>
+                    </div>
+                </div>
                 
                 <!-- 안내 메시지 -->
                 <div class="lottery-notice mobile-only">
@@ -829,6 +714,38 @@
                                     <!-- 동적으로 생성됨 -->
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 로또 추첨 컨테이너 (룰렛과 같은 위치) -->
+                <div class="lotto-container mb-4" id="lottoContainer" style="display: none;">
+                    <div class="lotto-balls-container">
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">백의자리</div>
+                            <div class="lotto-ball" id="lottoBall1">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">십의자리</div>
+                            <div class="lotto-ball" id="lottoBall2">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                        <div class="lotto-ball-wrapper">
+                            <div class="lotto-ball-label">일의자리</div>
+                            <div class="lotto-ball" id="lottoBall3">
+                                <div class="lotto-ball-number">?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lotto-result-number" id="lottoResultNumber" style="display: none;">
+                        <div class="lotto-result-label">당첨번호</div>
+                        <div class="lotto-result-digits">
+                            <span class="lotto-digit" id="lottoDigit1">-</span>
+                            <span class="lotto-digit" id="lottoDigit2">-</span>
+                            <span class="lotto-digit" id="lottoDigit3">-</span>
                         </div>
                     </div>
                 </div>
@@ -955,6 +872,91 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- QR 코드 생성 섹션 (맨 아래) -->
+            <div class="qr-section mb-4">
+                <h3>테스트 데이터 생성</h3>
+                <p class="text-muted">경품 추첨 기능 검증을 위한 가상 사용자 150명을 생성합니다.</p>
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-warning" id="generateTestDataBtn" onclick="generateTestData()">
+                        테스트 사용자 150명 생성
+                    </button>
+                    <button class="btn btn-danger" id="deleteTestDataBtn" onclick="deleteTestUsers()">
+                        테스트사용자 삭제
+                    </button>
+                </div>
+                <div id="testDataResult" class="mt-3" style="display: none;"></div>
+            </div>
+
+            <!-- QR 코드 생성 -->
+            <div class="qr-section mb-4">
+                <h3>부스 QR 코드 생성</h3>
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth1')">부스1 QR 생성</button>
+                        <div id="booth1QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth2')">부스2 QR 생성</button>
+                        <div id="booth2QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth3')">부스3 QR 생성</button>
+                        <div id="booth3QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth4')">부스4 QR 생성</button>
+                        <div id="booth4QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth5')">부스5 QR 생성</button>
+                        <div id="booth5QR" class="qr-code-display mt-2"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="generateBoothQR('booth6')">부스6 QR 생성</button>
+                        <div id="booth6QR" class="qr-code-display mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR 코드 팝업 모달 -->
+            <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="qrCodeModalLabel">부스 QR 코드</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <canvas id="qrCodeCanvas" style="max-width: 100%; height: auto;"></canvas>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" onclick="downloadQRCode()">
+                                    <i class="bi bi-download"></i> PNG 다운로드
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 통합설문 QR -->
+            <div class="qr-section mb-4">
+                <h3>통합설문 QR</h3>
+                <p class="text-muted mb-3">5점 척도 통합 설문 QR 코드 생성</p>
+                <button class="btn btn-primary" onclick="generateSurveyQR()">통합설문 QR 생성</button>
+                <div id="surveyQRDisplay" class="qr-code-display mt-2"></div>
+            </div>
+
+            <!-- 현장 참여 QR (추첨번호 발급) -->
+            <div class="qr-section mb-4">
+                <h3>현장 참여 QR (추첨번호 발급)</h3>
+                <p class="text-muted mb-3">
+                    행사 현장에서만 노출할 QR 코드입니다. 참가자가 해당 QR을 스캔하고 로그인하면 추첨번호가 발급됩니다.
+                    (고정 QR - 유효시간 없음)
+                </p>
+                <button class="btn btn-primary" onclick="generateLotteryIssueQR()">현장 참여 QR 생성</button>
+                <div id="lotteryIssueQRDisplay" class="qr-code-display mt-3"></div>
             </div>
 
             <!-- 데이터 조회 탭 -->
