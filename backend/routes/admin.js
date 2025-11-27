@@ -427,16 +427,19 @@ router.post('/prize-claim', (req, res) => {
 router.get('/prize-eligible', (req, res) => {
   const db = getDB();
 
-  // 먼저 부스 3개 이상 참여한 사용자 조회 (deleted = 0인 것만)
+  // 먼저 부스 3개 이상 참여한 사용자 조회 (deleted = 0인 것만, 수령여부 및 추첨타입 포함)
   db.all(`SELECT 
             u.id,
             u.empno,
             u.empname,
             u.deptname,
             u.posname,
-            COUNT(bp.id) as booth_count
+            COUNT(bp.id) as booth_count,
+            CASE WHEN pc.id IS NOT NULL THEN 1 ELSE 0 END as prize_claimed,
+            pc.prize_type
           FROM users u
           INNER JOIN booth_participations bp ON u.id = bp.user_id
+          LEFT JOIN prize_claims pc ON pc.user_id = u.id
           WHERE (u.deleted = 0 OR u.deleted IS NULL)
             AND (bp.deleted = 0 OR bp.deleted IS NULL)
           GROUP BY u.id
@@ -497,10 +500,12 @@ router.get('/prize-eligible', (req, res) => {
             boothCodeMap[bc.user_id] = bc.booth_codes || '';
           });
 
-          // 결과 조합
+          // 결과 조합 (수령여부 및 추첨타입 포함)
           const result = eligible.map(user => ({
             ...user,
-            booth_codes: boothCodeMap[user.id] || ''
+            booth_codes: boothCodeMap[user.id] || '',
+            prize_claimed: user.prize_claimed || 0,
+            prize_type: user.prize_type || null
           }));
 
           res.json({

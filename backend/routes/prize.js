@@ -100,8 +100,8 @@ router.post('/check-winner', (req, res) => {
           }
 
           if (!existing) {
-            // 경품 수령 기록 추가 (INSERT OR IGNORE로 중복 방지)
-            db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [winner.user_id], (insertErr) => {
+            // 경품 수령 기록 추가 (INSERT OR IGNORE로 중복 방지, 룰렛/로또 추첨)
+            db.run('INSERT OR IGNORE INTO prize_claims (user_id, prize_type) VALUES (?, ?)', [winner.user_id, 'roulette_lotto'], (insertErr) => {
               if (insertErr) {
                 console.error('경품 수령 기록 추가 오류:', insertErr);
                 // 기록 추가 실패해도 당첨 결과는 반환
@@ -317,7 +317,8 @@ router.post('/draw-bulk', (req, res) => {
         let insertCount = 0;
         let completedCount = 0;
         newClaimUserIds.forEach(userId => {
-          db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [userId], (insertErr) => {
+          // 10명 일괄 추첨
+          db.run('INSERT OR IGNORE INTO prize_claims (user_id, prize_type) VALUES (?, ?)', [userId, 'bulk_10'], (insertErr) => {
             if (insertErr) {
               console.error('경품 수령 기록 추가 오류:', insertErr);
             } else {
@@ -425,7 +426,8 @@ router.post('/draw-bulk-prize-eligible', (req, res) => {
         let insertCount = 0;
         let completedCount = 0;
         newClaimUserIds.forEach(userId => {
-          db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [userId], (insertErr) => {
+          // 모바일상품권 30명 추첨
+          db.run('INSERT OR IGNORE INTO prize_claims (user_id, prize_type) VALUES (?, ?)', [userId, 'mobile_gift_30'], (insertErr) => {
             if (insertErr) {
               console.error('경품 수령 기록 추가 오류:', insertErr);
             } else {

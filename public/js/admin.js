@@ -2762,6 +2762,35 @@ async function loadPrizeClaims() {
             if (data.eligible && data.eligible.length > 0) {
                 tbody.innerHTML = data.eligible.map(user => {
                     const boothCodes = user.booth_codes ? user.booth_codes.split(', ').join(', ') : '-';
+                    const prizeClaimed = user.prize_claimed || 0;
+                    let claimedText = '<span class="badge bg-secondary">미수령</span>';
+                    
+                    if (prizeClaimed) {
+                        // 추첨 타입에 따라 다른 배지 색상과 텍스트
+                        const prizeType = user.prize_type || '';
+                        let badgeClass = 'bg-success';
+                        let typeText = '';
+                        
+                        switch(prizeType) {
+                            case 'roulette_lotto':
+                                badgeClass = 'bg-primary';
+                                typeText = '룰렛/로또';
+                                break;
+                            case 'bulk_10':
+                                badgeClass = 'bg-info';
+                                typeText = '10명 추첨';
+                                break;
+                            case 'mobile_gift_30':
+                                badgeClass = 'bg-warning text-dark';
+                                typeText = '모바일상품권';
+                                break;
+                            default:
+                                badgeClass = 'bg-success';
+                                typeText = '수령완료';
+                        }
+                        claimedText = `<span class="badge ${badgeClass}">${typeText}</span>`;
+                    }
+                    
                     return `
                         <tr>
                             <td>${user.empname || '-'}</td>
@@ -2770,6 +2799,7 @@ async function loadPrizeClaims() {
                             <td>${user.posname || '-'}</td>
                             <td><strong>${user.booth_count || 0}</strong></td>
                             <td>${boothCodes}</td>
+                            <td>${claimedText}</td>
                             <td>
                                 <button class="btn btn-sm btn-danger" onclick="deletePrizeEligible(${user.id}, '${(user.empname || '').replace(/'/g, "\\'")}')">
                                     삭제
@@ -2779,12 +2809,12 @@ async function loadPrizeClaims() {
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">추첨 자격자가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">추첨 자격자가 없습니다.</td></tr>';
             }
         }
     } catch (error) {
         const tbody = document.getElementById('prizesTableBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">데이터 로드 중 오류가 발생했습니다.</td></tr>';
     }
 }
 

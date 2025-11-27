@@ -110,8 +110,14 @@ function createTables() {
         user_id INTEGER NOT NULL UNIQUE,
         claimed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         qr_data TEXT,
+        prize_type TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id)
       )`);
+      
+      // prize_type 컬럼 추가 (마이그레이션)
+      db.run(`ALTER TABLE prize_claims ADD COLUMN prize_type TEXT`, (err) => {
+        // 이미 존재하면 무시
+      });
 
       // 설문조사 테이블
       db.run(`CREATE TABLE IF NOT EXISTS surveys (
