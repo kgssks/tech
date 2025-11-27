@@ -377,6 +377,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadUserData();
     await loadParticipationStatus();
     await loadLotteryNumber();
+    await loadPrizeClaim();
     displayParticipantInfo();
     
     // 페이지가 다시 보일 때 참여 현황 갱신 (관리자가 삭제한 경우 반영)
@@ -910,6 +911,55 @@ window.scanLotteryQR = function() {
 // WebSocket 연결 함수 제거됨 (교환 절차 제거)
 
 // 경품 추첨 번호 로드
+// 경품 수령 정보 로드
+async function loadPrizeClaim() {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+        const response = await fetch(`/api/data/prize-claim`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'kb-auth': `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const prizeClaimInfo = document.getElementById('prizeClaimInfo');
+            if (prizeClaimInfo) {
+                if (data.prizeType) {
+                    // 경품 타입에 따라 표시 텍스트 설정
+                    let prizeTypeText = '-';
+                    switch (data.prizeType) {
+                        case 'roulette_lotto':
+                            prizeTypeText = '룰렛/로또';
+                            break;
+                        case 'bulk_10':
+                            prizeTypeText = '10명 추첨';
+                            break;
+                        case 'mobile_gift_30':
+                            prizeTypeText = '30명 추첨 (모바일상품권)';
+                            break;
+                        default:
+                            prizeTypeText = data.prizeType || '-';
+                    }
+                    prizeClaimInfo.textContent = prizeTypeText;
+                } else {
+                    prizeClaimInfo.textContent = '-';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('경품 수령 정보 로드 오류:', error);
+        const prizeClaimInfo = document.getElementById('prizeClaimInfo');
+        if (prizeClaimInfo) {
+            prizeClaimInfo.textContent = '-';
+        }
+    }
+}
+
 async function loadLotteryNumber() {
     const token = getToken();
     if (!token) return;

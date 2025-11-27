@@ -81,5 +81,28 @@ router.get('/lottery-number', authenticate, (req, res) => {
   });
 });
 
+// 사용자 경품 수령 정보 조회
+router.get('/prize-claim', authenticate, (req, res) => {
+  const db = getDB();
+
+  db.get(`SELECT pc.prize_type, pc.claimed_at
+           FROM prize_claims pc
+           JOIN users u ON pc.user_id = u.id
+           WHERE u.token_secret = ?`, [req.tokenSecret], (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: '서버 오류가 발생했습니다.'
+      });
+    }
+
+    res.json({
+      success: true,
+      prizeType: result ? result.prize_type : null,
+      claimedAt: result ? result.claimed_at : null
+    });
+  });
+});
+
 module.exports = router;
 
