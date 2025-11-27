@@ -898,7 +898,7 @@ window.manualQRInput = manualQRInput;
 window.showPrizeInfo = showPrizeInfo;
 window.scanLotteryQR = function() {
     if (!isLotteryEventDay()) {
-        const message = '추첨번호 발급은 행사 당일에 가능합니다.';
+        const message = '추첨번호는 행사 당일 현장 QR 스캔을 통해 발급 가능합니다.';
         showMessageBox('안내', message);
         return;
     }
