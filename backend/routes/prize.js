@@ -342,4 +342,108 @@ router.post('/draw-bulk', (req, res) => {
   });
 });
 
+// 모바일 상품권 추첨대상 다중 추첨 (부스 3개 이상 참여자만 대상)
+router.post('/draw-bulk-prize-eligible', (req, res) => {
+  const db = getDB();
+  const { count } = req.body || {};
+  const drawCount = parseInt(count, 10);
+
+  if (!drawCount || drawCount < 1) {
+    return res.status(400).json({
+      success: false,
+      message: '추첨 인원을 올바르게 입력해주세요.'
+    });
+  }
+
+  // 추첨 대상자 조회 (부스 3개 이상 참여 + 추첨번호 발급 + 경품 미수령)
+  const query = `
+    SELECT 
+      u.id AS user_id,
+      u.empno,
+      u.empname,
+      u.deptname,
+      u.posname,
+      ln.lottery_number,
+      COUNT(bp.id) as booth_count
+    FROM lottery_numbers ln
+    JOIN users u ON ln.user_id = u.id
+    INNER JOIN booth_participations bp ON u.id = bp.user_id
+    LEFT JOIN prize_claims pc ON pc.user_id = u.id
+    WHERE (u.deleted = 0 OR u.deleted IS NULL)
+      AND (bp.deleted = 0 OR bp.deleted IS NULL)
+      AND pc.id IS NULL
+    GROUP BY u.id, u.empno, u.empname, u.deptname, u.posname, ln.lottery_number
+    HAVING COUNT(bp.id) >= 3
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('모바일 상품권 추첨 조회 오류:', err);
+      return res.status(500).json({
+        success: false,
+        message: '서버 오류가 발생했습니다.'
+      });
+    }
+
+    if (!rows || rows.length === 0) {
+      return res.json({
+        success: true,
+        requestedCount: drawCount,
+        availableCount: 0,
+        winners: []
+      });
+    }
+
+    const shuffled = shuffleArray([...rows]);
+    const selectedWinners = shuffled.slice(0, Math.min(drawCount, shuffled.length));
+    
+    // 당첨자들의 경품 수령 기록 추가
+    const winnerUserIds = selectedWinners.map(row => row.user_id);
+    const placeholders = winnerUserIds.map(() => '(?)').join(',');
+    
+    // 먼저 이미 수령한 사용자 확인
+    db.all(`SELECT user_id FROM prize_claims WHERE user_id IN (${placeholders})`, winnerUserIds, (err, existingClaims) => {
+      if (err) {
+        console.error('경품 수령 기록 확인 오류:', err);
+        // 오류가 나도 추첨 결과는 반환
+      }
+
+      const existingUserIds = existingClaims ? existingClaims.map(c => c.user_id) : [];
+      const newClaimUserIds = winnerUserIds.filter(id => !existingUserIds.includes(id));
+
+      // 새로 수령할 사용자들만 기록 추가 (INSERT OR IGNORE로 중복 방지)
+      if (newClaimUserIds.length > 0) {
+        let insertCount = 0;
+        let completedCount = 0;
+        newClaimUserIds.forEach(userId => {
+          db.run('INSERT OR IGNORE INTO prize_claims (user_id) VALUES (?)', [userId], (insertErr) => {
+            if (insertErr) {
+              console.error('경품 수령 기록 추가 오류:', insertErr);
+            } else {
+              insertCount++;
+            }
+            completedCount++;
+          });
+        });
+      }
+
+      const winners = selectedWinners.map(row => ({
+        lottery_number: row.lottery_number,
+        empname: row.empname,
+        empno: row.empno,
+        deptname: row.deptname,
+        posname: row.posname,
+        booth_count: row.booth_count
+      }));
+
+      res.json({
+        success: true,
+        requestedCount: drawCount,
+        availableCount: rows.length,
+        winners
+      });
+    });
+  });
+});
+
 module.exports = router;

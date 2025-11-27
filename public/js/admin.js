@@ -1334,6 +1334,117 @@ async function drawBulkLottery(count = 10) {
     }
 }
 
+// 모바일 상품권 추첨대상 30명 추첨
+async function drawBulkLotteryPrizeEligible(count = 30) {
+    const drawBtn = document.getElementById('drawBulkLotteryPrizeEligibleBtn');
+    const resultContainer = document.getElementById('bulkLotteryPrizeEligibleResult');
+    const summaryEl = document.getElementById('bulkLotteryPrizeEligibleSummary');
+    
+    if (!drawBtn || !resultContainer) {
+        return;
+    }
+    
+    const requestedCount = Math.max(1, parseInt(count, 10) || 1);
+    const originalLabel = drawBtn.textContent;
+    let reenableTimeout = null;
+    
+    drawBtn.disabled = true;
+    drawBtn.textContent = '추첨 준비 중...';
+    resultContainer.innerHTML = '<div class="bulk-lottery-status">추첨 번호를 계산하고 있습니다...</div>';
+    if (summaryEl) {
+        summaryEl.style.display = 'none';
+        summaryEl.textContent = '';
+    }
+    
+    try {
+        const response = await fetch('/api/prize/draw-bulk-prize-eligible', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ count: requestedCount })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            resultContainer.innerHTML = `<div class="bulk-lottery-status text-danger">${data.message || '추첨 중 오류가 발생했습니다.'}</div>`;
+            return;
+        }
+        
+        const winners = data.winners || [];
+        const availableCount = data.availableCount || 0;
+        
+        if (winners.length === 0) {
+            const message = availableCount === 0
+                ? '현재 추첨 가능한 모바일 상품권 추첨대상이 없습니다.'
+                : '조건에 맞는 추첨 대상자를 찾을 수 없습니다.';
+            resultContainer.innerHTML = `<div class="bulk-lottery-status">${message}</div>`;
+            if (summaryEl) {
+                summaryEl.style.display = 'none';
+                summaryEl.textContent = '';
+            }
+            return;
+        }
+        
+        resultContainer.innerHTML = '';
+        const requestedText = data.requestedCount && data.requestedCount !== winners.length
+            ? ` (요청 ${data.requestedCount}명)`
+            : '';
+        if (summaryEl) {
+            summaryEl.innerHTML = `<strong>${winners.length}</strong>명 추첨 완료${requestedText} · 모바일 상품권 추첨대상 ${availableCount}명`;
+            summaryEl.style.display = 'block';
+        }
+        
+        const revealDelay = 600;
+        winners.forEach((winner, index) => {
+            const item = document.createElement('div');
+            item.className = 'bulk-lottery-item';
+            
+            const numberStr = String(winner.lottery_number).padStart(3, '0');
+            const empName = winner.empname || '미확인';
+            const dept = winner.deptname || '-';
+            const pos = winner.posname || '';
+            const empno = winner.empno || '-';
+            const boothCount = winner.booth_count || 0;
+            
+            item.innerHTML = `
+                <div class="bulk-lottery-number">${numberStr}</div>
+                <div class="bulk-lottery-meta">
+                    <strong>${empName}</strong>
+                    <span>${dept} ${pos}</span>
+                    <span>사번 ${empno}</span>
+                    <span>부스 ${boothCount}개 참여</span>
+                </div>
+            `;
+            
+            // 초기에는 보이지 않도록 하고, 순차적으로 show 클래스 부여
+            resultContainer.appendChild(item);
+            setTimeout(() => {
+                item.classList.add('show');
+            }, index * revealDelay);
+        });
+        
+        const totalDelay = (winners.length - 1) * revealDelay + 800;
+        reenableTimeout = setTimeout(() => {
+            drawBtn.disabled = false;
+            drawBtn.textContent = originalLabel;
+        }, totalDelay);
+    } catch (error) {
+        console.error('모바일 상품권 추첨 오류:', error);
+        resultContainer.innerHTML = '<div class="bulk-lottery-status text-danger">추첨 중 오류가 발생했습니다. 다시 시도해주세요.</div>';
+        if (summaryEl) {
+            summaryEl.style.display = 'none';
+            summaryEl.textContent = '';
+        }
+    } finally {
+        if (!reenableTimeout) {
+            drawBtn.disabled = false;
+            drawBtn.textContent = originalLabel;
+        }
+    }
+}
+
 // 경품 수령 기록 초기화
 async function resetPrizeClaims() {
     if (typeof showConfirmModal === 'function') {

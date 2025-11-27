@@ -759,8 +759,16 @@
                     </button>
                     <small class="text-muted">버튼 한 번으로 10명의 추첨번호를 순차적으로 공개합니다.</small>
                 </div>
+                <div class="bulk-lottery-controls mt-3">
+                    <button class="btn btn-outline-success btn-lg" id="drawBulkLotteryPrizeEligibleBtn" onclick="drawBulkLotteryPrizeEligible(30)">
+                        30명 추첨 (모바일상품권)
+                    </button>
+                    <small class="text-muted">부스 3개 이상 참여한 모바일 상품권 추첨대상 중 30명을 순차적으로 공개합니다.</small>
+                </div>
                 <div id="bulkLotterySummary" class="bulk-lottery-summary" style="display: none;"></div>
                 <div id="bulkLotteryResult" class="bulk-lottery-result"></div>
+                <div id="bulkLotteryPrizeEligibleSummary" class="bulk-lottery-summary" style="display: none;"></div>
+                <div id="bulkLotteryPrizeEligibleResult" class="bulk-lottery-result"></div>
 
                 <hr class="my-4">
 
