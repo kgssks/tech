@@ -824,40 +824,47 @@
 
                 <!-- 데이터 초기화 섹션 -->
                 <div class="lottery-reset-section">
-                    <h4>데이터 초기화</h4>
-                    <p class="text-muted mb-3">테스트 데이터를 초기화합니다. 각 항목별로 개별 초기화가 가능합니다.</p>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h5 class="card-title">경품 수령 기록</h5>
-                                    <p class="card-text text-muted small">당첨자의 경품 수령 상태를 초기화합니다.</p>
-                                    <button class="btn btn-warning btn-sm w-100" id="resetPrizeClaimsBtn" onclick="resetPrizeClaims()">
-                                        <i class="bi bi-arrow-counterclockwise"></i> 초기화
-                                    </button>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="mb-0">데이터 초기화</h4>
+                        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dataResetCollapse" aria-expanded="false" aria-controls="dataResetCollapse">
+                            <i class="bi bi-chevron-down" id="dataResetToggleIcon"></i> <span id="dataResetToggleText">펼치기</span>
+                        </button>
+                    </div>
+                    <div class="collapse" id="dataResetCollapse">
+                        <p class="text-muted mb-3">테스트 데이터를 초기화합니다. 각 항목별로 개별 초기화가 가능합니다.</p>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">경품 수령 기록</h5>
+                                        <p class="card-text text-muted small">당첨자의 경품 수령 상태를 초기화합니다.</p>
+                                        <button class="btn btn-warning btn-sm w-100" id="resetPrizeClaimsBtn" onclick="resetPrizeClaims()">
+                                            <i class="bi bi-arrow-counterclockwise"></i> 초기화
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h5 class="card-title">추첨번호</h5>
-                                    <p class="card-text text-muted small">현장 QR 인증으로 발급된 모든 추첨번호를 삭제합니다.</p>
-                                    <button class="btn btn-warning btn-sm w-100" id="resetLotteryNumbersBtn" onclick="resetLotteryNumbers()">
-                                        <i class="bi bi-arrow-counterclockwise"></i> 초기화
-                                    </button>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">추첨번호</h5>
+                                        <p class="card-text text-muted small">현장 QR 인증으로 발급된 모든 추첨번호를 삭제합니다.</p>
+                                        <button class="btn btn-warning btn-sm w-100" id="resetLotteryNumbersBtn" onclick="resetLotteryNumbers()">
+                                            <i class="bi bi-arrow-counterclockwise"></i> 초기화
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h5 class="card-title">경품 추첨 번호 발급 초기화</h5>
-                                    <p class="card-text text-muted small">테스트로 QR을 찍어본 관리자들의 QR 발급 이력을 삭제합니다.</p>
-                                    <button class="btn btn-warning btn-sm w-100" id="resetAdminIssuedLotteryNumbersBtn" onclick="resetAdminIssuedLotteryNumbers()">
-                                        <i class="bi bi-arrow-counterclockwise"></i> 초기화
-                                    </button>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">경품 추첨 번호 발급 초기화</h5>
+                                        <p class="card-text text-muted small">테스트로 QR을 찍어본 관리자들의 QR 발급 이력을 삭제합니다.</p>
+                                        <button class="btn btn-warning btn-sm w-100" id="resetAdminIssuedLotteryNumbersBtn" onclick="resetAdminIssuedLotteryNumbers()">
+                                            <i class="bi bi-arrow-counterclockwise"></i> 초기화
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -909,7 +916,7 @@
                 <hr class="my-4">
 
                 <!-- 경품 추첨 테스트 대상자 생성 -->
-                <div class="lottery-test-users-section">
+                <!-- <div class="lottery-test-users-section">
                     <h4>경품 추첨 테스트 대상자 관리</h4>
                     <p class="text-muted mb-3">경품 추첨 테스트를 위한 대상자를 생성하고 삭제할 수 있습니다. 테스트 유저가 생성되고 현장 QR을 찍었다고 가정하여 추첨번호가 자동으로 발급됩니다.</p>
                     
@@ -929,11 +936,11 @@
                             </button>
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
 
             <!-- QR 코드 생성 섹션 (맨 아래) -->
-            <div class="qr-section mb-4">
+            <!-- <div class="qr-section mb-4">
                 <h3>테스트 데이터 생성</h3>
                 <p class="text-muted">경품 추첨 기능 검증을 위한 가상 사용자 150명을 생성합니다.</p>
                 <div class="d-flex gap-2 mb-3">
@@ -945,7 +952,7 @@
                     </button>
                 </div>
                 <div id="testDataResult" class="mt-3" style="display: none;"></div>
-            </div>
+            </div> -->
 
             <!-- QR 코드 생성 -->
             <div class="qr-section mb-4">

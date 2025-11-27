@@ -3574,6 +3574,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 로또 CSS 스타일 추가
     addLottoStyles();
     
+    // 데이터 초기화 섹션 토글 버튼 아이콘/텍스트 업데이트
+    const dataResetCollapse = document.getElementById('dataResetCollapse');
+    const dataResetToggleIcon = document.getElementById('dataResetToggleIcon');
+    const dataResetToggleText = document.getElementById('dataResetToggleText');
+    
+    if (dataResetCollapse && dataResetToggleIcon && dataResetToggleText) {
+        dataResetCollapse.addEventListener('show.bs.collapse', () => {
+            dataResetToggleIcon.classList.remove('bi-chevron-down');
+            dataResetToggleIcon.classList.add('bi-chevron-up');
+            dataResetToggleText.textContent = '접기';
+        });
+        
+        dataResetCollapse.addEventListener('hide.bs.collapse', () => {
+            dataResetToggleIcon.classList.remove('bi-chevron-up');
+            dataResetToggleIcon.classList.add('bi-chevron-down');
+            dataResetToggleText.textContent = '펼치기';
+        });
+    }
+    
     // 폼 제출 이벤트
     document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
         e.preventDefault();
