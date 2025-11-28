@@ -929,23 +929,23 @@ async function loadPrizeClaim() {
         if (data.success) {
             const prizeClaimInfo = document.getElementById('prizeClaimInfo');
             if (prizeClaimInfo) {
-                if (data.prizes && data.prizes.length > 0) {
+                if (data.prizeType) {
                     // 경품 타입에 따라 표시 텍스트 설정
-                    const prizeTypeTexts = data.prizes.map(prize => {
-                        switch (prize.prize_type) {
-                            case 'roulette_lotto':
-                                return '룰렛/로또';
-                            case 'bulk_10':
-                                return '10명 추첨';
-                            case 'mobile_gift_30':
-                                return '30명 추첨 (모바일상품권)';
-                            default:
-                                return prize.prize_type || '-';
-                        }
-                    });
-                    
-                    // 여러 개일 경우 줄바꿈으로 구분
-                    prizeClaimInfo.innerHTML = prizeTypeTexts.join('<br>');
+                    let prizeTypeText = '-';
+                    switch (data.prizeType) {
+                        case 'roulette_lotto':
+                            prizeTypeText = '룰렛/로또';
+                            break;
+                        case 'bulk_10':
+                            prizeTypeText = '10명 추첨';
+                            break;
+                        case 'mobile_gift_30':
+                            prizeTypeText = '30명 추첨 (모바일상품권)';
+                            break;
+                        default:
+                            prizeTypeText = data.prizeType || '-';
+                    }
+                    prizeClaimInfo.textContent = prizeTypeText;
                 } else {
                     prizeClaimInfo.textContent = '-';
                 }

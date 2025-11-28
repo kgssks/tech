@@ -2758,6 +2758,13 @@ async function loadPrizeClaims() {
         const data = await response.json();
 
         if (data.success) {
+            // 총 인원 수 업데이트
+            const totalCountEl = document.getElementById('prizeEligibleTotalCount');
+            if (totalCountEl) {
+                const totalCount = data.eligible ? data.eligible.length : 0;
+                totalCountEl.textContent = totalCount;
+            }
+            
             const tbody = document.getElementById('prizesTableBody');
             if (data.eligible && data.eligible.length > 0) {
                 tbody.innerHTML = data.eligible.map(user => {
