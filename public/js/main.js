@@ -536,8 +536,8 @@ async function handleYouTubeWatch() {
         const data = await response.json();
         
         if (data.success && data.canAccess) {
-            // 접근 가능: YouTube 링크로 이동
-            window.open('https://www.youtube.com/watch?v=tech20251128', '_blank', 'noopener,noreferrer');
+            // 접근 가능: YouTube 라이브 스트림 링크로 이동
+            window.open('https://youtube.com/live/iI0ME9cTiHI?feature=share', '_blank', 'noopener,noreferrer');
         } else {
             // 접근 불가: 모달 표시
             const modal = document.getElementById('youtubeAccessModal');
