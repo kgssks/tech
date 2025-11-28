@@ -81,14 +81,15 @@ router.get('/lottery-number', authenticate, (req, res) => {
   });
 });
 
-// 사용자 경품 수령 정보 조회
+// 사용자 경품 수령 정보 조회 (여러 개 수령 가능)
 router.get('/prize-claim', authenticate, (req, res) => {
   const db = getDB();
 
-  db.get(`SELECT pc.prize_type, pc.claimed_at
+  db.all(`SELECT pc.prize_type, pc.claimed_at
            FROM prize_claims pc
            JOIN users u ON pc.user_id = u.id
-           WHERE u.token_secret = ?`, [req.tokenSecret], (err, result) => {
+           WHERE u.token_secret = ?
+           ORDER BY pc.claimed_at ASC`, [req.tokenSecret], (err, results) => {
     if (err) {
       return res.status(500).json({
         success: false,
@@ -98,8 +99,8 @@ router.get('/prize-claim', authenticate, (req, res) => {
 
     res.json({
       success: true,
-      prizeType: result ? result.prize_type : null,
-      claimedAt: result ? result.claimed_at : null
+      prizes: results || [],
+      prizeCount: results ? results.length : 0
     });
   });
 });
