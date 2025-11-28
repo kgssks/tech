@@ -427,10 +427,10 @@ async function loadBoothData() {
                 boothChart.destroy();
             }
 
-            // 부스 코드와 부스 이름을 두 줄로 표시
+            // 부스 코드와 부스 이름을 두 줄로 표시 (배열로 반환하여 Chart.js가 자동으로 여러 줄 처리)
             const labels = data.data.boothStats.map(b => {
                 const boothName = getBoothName(b.booth_code);
-                return `${b.booth_code}\n${boothName}`;
+                return [b.booth_code, boothName];
             });
             const counts = data.data.boothStats.map(b => b.count);
 
@@ -463,7 +463,15 @@ async function loadBoothData() {
                         x: {
                             ticks: {
                                 maxRotation: 0,
-                                minRotation: 0
+                                minRotation: 0,
+                                font: {
+                                    size: 11
+                                },
+                                padding: 10
+                            },
+                            afterFit: function(scale) {
+                                // x축 레이블이 잘리지 않도록 높이 조정 (두 줄 표시를 위해)
+                                scale.height = scale.height + 40;
                             }
                         },
                         y: {
@@ -476,6 +484,20 @@ async function loadBoothData() {
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    // 툴팁에서도 배열 레이블 처리
+                                    const label = context[0].label;
+                                    return Array.isArray(label) ? label.join(' - ') : label;
+                                }
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            bottom: 20
                         }
                     }
                 }
