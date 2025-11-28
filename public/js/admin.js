@@ -427,7 +427,11 @@ async function loadBoothData() {
                 boothChart.destroy();
             }
 
-            const labels = data.data.boothStats.map(b => b.booth_code);
+            // 부스 코드와 부스 이름을 두 줄로 표시
+            const labels = data.data.boothStats.map(b => {
+                const boothName = getBoothName(b.booth_code);
+                return `${b.booth_code}\n${boothName}`;
+            });
             const counts = data.data.boothStats.map(b => b.count);
 
             boothChart = new Chart(ctx, {
@@ -456,6 +460,12 @@ async function loadBoothData() {
                     responsive: true,
                     maintainAspectRatio: true,
                     scales: {
+                        x: {
+                            ticks: {
+                                maxRotation: 0,
+                                minRotation: 0
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             ticks: {
