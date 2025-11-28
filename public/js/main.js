@@ -522,39 +522,10 @@ function showConfirmModal(title, message, onConfirm, onCancel = null) {
     bsModal.show();
 }
 
-// YouTube 시청 버튼 클릭 처리
-async function handleYouTubeWatch() {
-    const btn = document.getElementById('youtubeWatchBtn');
-    if (!btn) return;
-    
-    btn.disabled = true;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 확인 중...';
-    
-    try {
-        const response = await fetch('/api/config/check-event-time');
-        const data = await response.json();
-        
-        if (data.success && data.canAccess) {
-            // 접근 가능: YouTube 라이브 스트림 링크로 이동
-            window.open('https://youtube.com/live/iI0ME9cTiHI?feature=share', '_blank', 'noopener,noreferrer');
-        } else {
-            // 접근 불가: 모달 표시
-            const modal = document.getElementById('youtubeAccessModal');
-            const messageEl = document.getElementById('youtubeAccessMessage');
-            if (messageEl) {
-                messageEl.textContent = data.message || '행사 생중계 시간이 아닙니다. 일정을 확인 하시고 다시 접속 해 주세요';
-            }
-            const bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
-        }
-    } catch (error) {
-        console.error('YouTube 접근 확인 오류:', error);
-        showModal('오류', '서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+// YouTube 시청 버튼 클릭 처리 (시간 제한 없이 항상 접근 가능)
+function handleYouTubeWatch() {
+    // 시간 체크 없이 바로 YouTube 라이브 스트림 링크로 이동
+    window.open('https://youtube.com/live/iI0ME9cTiHI?feature=share', '_blank', 'noopener,noreferrer');
 }
 
 // YouTube 버튼 이벤트 리스너 등록
