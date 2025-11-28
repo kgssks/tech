@@ -551,7 +551,7 @@ function showQRCodePopup(qrImageBase64, boothCode, boothName) {
         ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
         
         // 텍스트 추가: "KB TECH FORUM . {{부스제목}}"
-        const text = `KB TECH FORUM . ${boothName}`;
+        const text = `${boothName}`;
         ctx.fillStyle = '#60584C'; // KB Gray
         ctx.font = 'bold 48px Arial, sans-serif';
         ctx.textAlign = 'center';
